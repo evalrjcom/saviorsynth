@@ -1,4 +1,4 @@
-# saviorsynth_v7 — wavetable synthesizer (Rust + FLTK)
+# saviorsynth_v8 — wavetable synthesizer (Rust + FLTK)
 
 A standalone wavetable synth with one-key chords, progressions and an arpeggiator for **Windows (x64)** and **Linux (x86_64)**.
 Single self-contained executable, no runtime dependencies besides the system audio/GUI libraries
@@ -12,8 +12,8 @@ Single self-contained executable, no runtime dependencies besides the system aud
 
 | Platform | Run |
 |---|---|
-| Windows 10/11 x64 | double-click `saviorsynth_v7_windows_x64.exe` |
-| Linux   | `chmod +x saviorsynth_v7_linux_x86_64 && ./saviorsynth_v7_linux_x86_64` (needs the usual desktop libraries: X11, Xinerama/Xcursor/Xfixes, pango, cairo, ALSA — present on any desktop distro; binary needs glibc 2.38+ = Ubuntu 24.04, Debian 13, Fedora 39 or newer; on an older distro just run `./build_all.sh`) |
+| Windows 10/11 x64 | double-click `saviorsynth_v8_windows_x64.exe` |
+| Linux   | `chmod +x saviorsynth_v8_linux_x86_64 && ./saviorsynth_v8_linux_x86_64` (needs the usual desktop libraries: X11, Xinerama/Xcursor/Xfixes, pango, cairo, ALSA — present on any desktop distro; binary needs glibc 2.38+ = Ubuntu 24.04, Debian 13, Fedora 39 or newer; on an older distro just run `./build_all.sh`) |
 
 Play with the on-screen keyboard (mouse; drag to glissando; click height = velocity), the computer keyboard,
 or a MIDI keyboard (first MIDI port is auto-connected; choose another in the top-right menu).
@@ -77,6 +77,8 @@ The bottom panels sit between your keys and the voices. Play **one key** and the
 | Progression | the key is the tonic; the chord **steps through a progression** (I-IV-V-I, I-V-VI-IV, II-V-I, I-VI-IV-V, VI-IV-I-V, **I-II-IV-I**, I-IV-II-V, I-III-IV-V, I-II-IV-V, I-VII-VI-V, or **Custom** steps 1-4) every `Step Length` (2 bars / 1 bar / 1/2 bar / 1 beat, tempo from `BPM`) |
 
 `Scale`: Major, Minor, Dorian, Mixolydian, Harmonic Minor. `Variation`: Triad, Sus2, Sus4, 6th, 7th (diatonic), Dom 7, 9th, Add9, Power (5th), Octave.
+`Latch` (Chords panel): hold the chord / progression after you let go of the key; the next key press replaces it, switching Latch off releases it. The Arpeggiator's own `Latch` does the same for the arp; either one latches the stage.
+**Changing instrument while playing:** when a progression, chord or arpeggiator is running, choosing a normal instrument preset only swaps the sound: the stage settings (mode, progression, arp, latch), the held/latched keys, the progression position and the arp clock all continue, and the chord simply re-triggers with the new sound. Presets from the *Chords*, *Progressions*, *Arps*, *Beats* and *User* categories bring their own stage setup and replace the running one (held keys still continue).
 `Inversion`: Root / 1st / 2nd / 3rd. `Open` = drop-2 voicing. `Bass` = add the chord root an octave below.
 The detected chord name (e.g. *Fmaj7*) is shown in the panel while a chord plays. In One-Key mode, several held keys each play their own chord.
 
@@ -126,10 +128,10 @@ or *User* preset replaces the session (tempo, drum pattern); other categories ke
 ## Command line
 
 ```
-saviorsynth_v7 --list                         list presets
-saviorsynth_v7 --render "supersaw" out.wav    render one preset to a 16-bit WAV (--note 48 --seconds 4)
-saviorsynth_v7 --render all outdir/           render every preset
-saviorsynth_v7 --selftest                     headless regression test: NaN / silence / clipping / CPU for all presets
+saviorsynth_v8 --list                         list presets
+saviorsynth_v8 --render "supersaw" out.wav    render one preset to a 16-bit WAV (--note 48 --seconds 4)
+saviorsynth_v8 --render all outdir/           render every preset
+saviorsynth_v8 --selftest                     headless regression test: NaN / silence / clipping / CPU for all presets
 ```
 
 ## Building

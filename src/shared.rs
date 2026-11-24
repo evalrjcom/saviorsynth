@@ -11,6 +11,7 @@ pub enum Event {
     NoteOn(u8, u8),
     NoteOff(u8),
     AllOff,
+    SoundChange,   // instrument changed while the chord/arp stage is running: re-trigger, keep keys + timing
     Sustain(bool),
     Loop(u8),      // looper command (see looper::Cmd)
     Drum(u8, u8),  // audition a drum voice (track, velocity)

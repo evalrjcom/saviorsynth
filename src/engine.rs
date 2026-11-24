@@ -567,7 +567,8 @@ impl Engine {
     /// directly only while the stage is inactive, so toggling it mid-note never leaves stuck notes.
     fn run_performance(&mut self) {
         let act = self.snap[CH_MODE] >= 0.5 || self.snap[AR_ON] >= 0.5;
-        let latch = self.snap[AR_LATCH] >= 0.5;
+        // either Latch switch holds the keys: Arp latch while the arp runs, Chord latch for chords / progressions
+        let latch = (self.snap[AR_ON] >= 0.5 && self.snap[AR_LATCH] >= 0.5) || (self.snap[CH_MODE] >= 0.5 && self.snap[CH_LATCH] >= 0.5);
         if self.latch && !latch { self.perf.unlatch(); }
         self.latch = latch;
         if act && !self.perf_act { self.release_voices(); }
@@ -592,6 +593,7 @@ impl Engine {
                 Some(Event::NoteOn(n, v)) => { self.perf.track_on(n, v, self.latch); if !self.perf_act { self.note_on(n, v); } }
                 Some(Event::NoteOff(n)) => { self.perf.track_off(n, self.latch); if !self.perf_act { self.note_off(n); } }
                 Some(Event::AllOff) => { self.perf.reset(); self.all_off(); }
+                Some(Event::SoundChange) => { if self.perf_act { self.release_voices(); self.perf.resync(); } else { self.all_off(); } }
                 Some(Event::Sustain(b)) => self.set_sustain(b),
                 Some(Event::Loop(c)) => if let Some(cmd) = LoopCmd::from_u8(c) { self.looper.command(cmd, self.snap[LP_BARS] as usize, self.snap[BPM], self.sr); },
                 Some(Event::Drum(t, v)) => { let t = (t as usize).min(7); self.drums.trigger(t, v as f32 / 127.0 * self.snap[DR_V1 + t * 5]); }

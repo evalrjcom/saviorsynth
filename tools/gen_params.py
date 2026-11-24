@@ -120,6 +120,7 @@ add("CH_EXT","Variation",0,9,0,en("CHORD_EXTS"))
 add("CH_INV","Inversion",0,3,0,en("INVERSIONS"))
 add("CH_OPEN","Open",0,1,0,"Bool")
 add("CH_BASS","Bass",0,1,0,"Bool")
+add("CH_LATCH","Chord Latch",0,1,0,"Bool")
 add("PR_PAT","Progression",0,10,0,en("PROG_PATS"))
 add("PR_LEN","Step Len",0,3,1,en("PROG_LENS"))
 for i in range(1,5):

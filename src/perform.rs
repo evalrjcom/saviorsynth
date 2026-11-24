@@ -146,6 +146,10 @@ impl Performer {
     }
     pub fn held(&self) -> &[(u8, u8)] { &self.held[..self.nheld] }
 
+    /// The voices were released from outside (instrument change): forget which notes we think are sounding so the
+    /// next block re-triggers them, but keep held/latched keys, the progression position and the arp clock.
+    pub fn resync(&mut self) { self.nowned = 0; self.npend = 0; self.gate_off = -1.0; }
+
     pub fn reset(&mut self) { self.nheld = 0; self.nsrc = 0; self.running = false; }
 
     pub fn track_on(&mut self, n: u8, v: u8, latch: bool) {

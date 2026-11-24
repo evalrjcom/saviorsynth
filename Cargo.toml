@@ -3,8 +3,8 @@
 # (window title, --help, preset headers) is derived from CARGO_PKG_NAME /
 # CARGO_PKG_VERSION, so bumping the version means editing ONLY this block
 # (+ renaming the project folder / docs, see tools/bump_version.sh).
-name = "saviorsynth_v7"
-version = "7.0.0"
+name = "saviorsynth_v8"
+version = "8.0.0"
 edition = "2021"
 description = "Wavetable synthesizer in Rust + FLTK with unison, warp, mod matrix, FX, one-key chords, progressions, arpeggiator with BPM/humanize, drum machine (707/808/909 kits), looper and 290+ presets"
 license = "MIT"

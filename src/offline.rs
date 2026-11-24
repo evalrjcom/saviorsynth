@@ -116,6 +116,42 @@ mod tests {
         assert_eq!(shared.voices.load(Ordering::Relaxed), 0, "no stuck voices after release");
     }
 
+    /// Latched one-key progression keeps playing after the key is released, and an instrument change while it
+    /// runs only swaps the sound: the progression position, the latched key and the audio all continue.
+    #[test]
+    fn latched_progression_survives_instrument_change() {
+        let bank = Arc::new(WaveBank::generate());
+        let shared = Shared::new();
+        let mut v = default_patch();
+        v[CH_MODE] = 3.0; v[PR_PAT] = 0.0; v[PR_LEN] = 3.0; v[BPM] = 120.0; v[CH_LATCH] = 1.0; // I-IV-V-I, 1 beat each
+        shared.params.load(&v);
+        let mut eng = Engine::new(48000.0, shared.clone(), bank.clone());
+        let mut buf = vec![0.0f32; 2 * 4800];
+        shared.note_on(60, 100);
+        for _ in 0..3 { eng.fill(&mut buf); }
+        shared.note_off(60); // released, but latched
+        let mut roots = vec![];
+        let mut peak = 0.0f32;
+        for blk in 0..30 {
+            if blk == 12 { // "change instrument" mid-progression: new sound, same stage settings, soft event
+                let mut nv = default_patch(); nv[A_UNI] = 5.0; nv[CH_MODE] = 3.0; nv[CH_LATCH] = 1.0; nv[BPM] = 120.0; nv[PR_LEN] = 3.0;
+                shared.params.load(&nv); shared.push(crate::shared::Event::SoundChange);
+            }
+            eng.fill(&mut buf);
+            peak = peak.max(buf.iter().fold(0.0, |m, x| m.max(x.abs())));
+            if blk % 5 == 2 { roots.push(shared.chord_root.load(Ordering::Relaxed)); }
+        }
+        assert!(roots.iter().all(|&r| r != u32::MAX), "stage stopped: {roots:?}");
+        assert!(peak > 0.01, "silent after release/instrument change");
+        assert!(shared.voices.load(Ordering::Relaxed) > 0, "chord must still sound after the instrument change");
+        // turning latch off drops the latched set (key is up) -> silence, no stuck voices
+        let mut off = default_patch(); off[CH_MODE] = 3.0; off[CH_LATCH] = 0.0; off[BPM] = 120.0; off[PR_LEN] = 3.0;
+        shared.params.load(&off);
+        for _ in 0..60 { eng.fill(&mut buf); }
+        assert_eq!(shared.voices.load(Ordering::Relaxed), 0);
+        assert_eq!(shared.chord_root.load(Ordering::Relaxed), u32::MAX);
+    }
+
     /// Drum machine -> looper through the real engine: record one bar of beat, stop the drums, and the
     /// loop keeps playing it back; Clear returns to silence.
     #[test]

@@ -29,6 +29,25 @@ fn col(h: u32) -> Color { Color::from_hex(h) }
 /// They are kept when you browse presets (except "Beats" demos and files you load yourself).
 fn is_global(i: usize) -> bool { let k = PARAMS[i].key; k == "BPM" || k.starts_with("DR_") || k.starts_with("LP_") || k.starts_with("HUM_") }
 
+/// Chord / progression / arpeggiator settings (the performance stage).
+fn is_perf(i: usize) -> bool { let k = PARAMS[i].key; k.starts_with("CH_") || k.starts_with("PR_") || k.starts_with("AR_") }
+/// Preset categories that carry their own performance settings (they replace the running stage's setup).
+fn carries_perf(cat: &str) -> bool { matches!(cat, "Chords" | "Progressions" | "Arps" | "Beats" | "User") }
+
+/// Merge a preset into the running session. Session settings (tempo, drums, looper, humanize) survive normal browsing;
+/// while a progression/arpeggiator is playing, a plain *instrument* preset keeps the stage and its latched keys, so you
+/// can change sounds without it stopping. Returns true when the performance stage was active (-> soft sound change).
+fn merge_preset(vals: &mut [f32], now: &[f32], cat: &str) -> bool {
+    let perf_on = now[CH_MODE] >= 0.5 || now[AR_ON] >= 0.5;
+    if cat != "Beats" && cat != "User" {
+        for i in 0..PARAM_COUNT { if is_global(i) { vals[i] = now[i]; } }
+    }
+    if perf_on && !carries_perf(cat) {
+        for i in 0..PARAM_COUNT { if is_perf(i) { vals[i] = now[i]; } }
+    }
+    perf_on
+}
+
 type Refresh = Rc<RefCell<Vec<Box<dyn Fn()>>>>;
 
 #[derive(Clone)]
@@ -538,12 +557,11 @@ impl Browser {
         if idx >= self.presets.len() { return; }
         self.cur = idx;
         let mut vals = self.presets[idx].vals.clone();
-        if self.presets[idx].cat != "Beats" && self.presets[idx].cat != "User" {
-            let now = self.sh.params.snapshot();
-            for i in 0..PARAM_COUNT { if is_global(i) { vals[i] = now[i]; } }
-        }
+        let now = self.sh.params.snapshot();
+        let perf_on = merge_preset(&mut vals, &now, &self.presets[idx].cat);
         self.sh.params.load(&vals);
-        self.sh.push(SynthEvent::AllOff);
+        // while the chord/arp stage plays, only swap the sound (keys, latch, progression position and arp clock continue)
+        self.sh.push(if perf_on { SynthEvent::SoundChange } else { SynthEvent::AllOff });
         if self.cat != 0 && self.presets[idx].cat != self.cats[self.cat - 1] {
             self.cat = self.cats.iter().position(|c| *c == self.presets[idx].cat).map(|i| i + 1).unwrap_or(0);
             self.cat_choice.set_value(self.cat as i32);
@@ -1016,6 +1034,8 @@ pub fn run(bank: Arc<WaveBank>, list: Vec<Preset>) {
         h("TEMPO (arp, progression, drums, looper)", x + 6, r4 + 91);
         ctl(&c, x + 6, r4 + 100, 200, 20, BPM, "", Style::HSlider);
         readout(&c, x + 212, r4 + 101, 64, 18, BPM); tap_button(&c, x + 282, r4 + 100, 44, 20);
+        toggle(&c, x + 340, r4 + 100, 60, 20, CH_LATCH, "Latch");
+        label(x + 406, r4 + 102, 250, 12, "hold the chord / progression after you let go", DIM, 8);
     }
     {
         let x = 672;
@@ -1206,4 +1226,34 @@ pub fn run(bank: Arc<WaveBank>, list: Vec<Preset>) {
     let _ = &mut kb;
     let _ = app.run();
     drop(audio_res);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::params::default_patch;
+
+    fn with(pairs: &[(usize, f32)]) -> Vec<f32> { let mut v = default_patch(); for &(i, x) in pairs { v[i] = x; } v }
+
+    #[test]
+    fn instrument_change_keeps_running_progression_and_arp() {
+        let now = with(&[(CH_MODE, 3.0), (PR_PAT, 1.0), (AR_ON, 1.0), (AR_PAT, 4.0), (CH_LATCH, 1.0), (BPM, 97.0)]);
+        let mut new = with(&[(A_UNI, 7.0)]);          // a plain instrument preset: no chords, no arp
+        let on = merge_preset(&mut new, &now, "Pad");
+        assert!(on);
+        assert_eq!((new[CH_MODE], new[PR_PAT], new[AR_ON], new[AR_PAT], new[CH_LATCH], new[BPM]), (3.0, 1.0, 1.0, 4.0, 1.0, 97.0));
+        assert_eq!(new[A_UNI], 7.0, "the sound itself changes");
+    }
+
+    #[test]
+    fn playable_presets_replace_the_stage_and_idle_stage_follows_the_preset() {
+        let now = with(&[(CH_MODE, 3.0), (AR_ON, 1.0)]);
+        let mut chords = with(&[(CH_MODE, 1.0)]);
+        assert!(merge_preset(&mut chords, &now, "Chords"));
+        assert_eq!((chords[CH_MODE], chords[AR_ON]), (1.0, 0.0), "Chords presets bring their own stage setup");
+        let idle = default_patch();
+        let mut arp = with(&[(AR_ON, 1.0)]);
+        assert!(!merge_preset(&mut arp, &idle, "Pad"));
+        assert_eq!(arp[AR_ON], 1.0, "no running stage -> preset applies unchanged");
+    }
 }
