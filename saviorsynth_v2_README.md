@@ -1,10 +1,10 @@
-# saviorsynth_v1 — wavetable synthesizer (Rust + FLTK)
+# saviorsynth_v2 — wavetable synthesizer (Rust + FLTK)
 
 A standalone wavetable synth for **Windows (x64)** and **Linux (x86_64)**.
 Single self-contained executable, no runtime dependencies besides the system audio/GUI libraries
 (WASAPI/Win32 on Windows, ALSA/X11 on Linux). Not a VST/AU plugin — it opens its own window and audio device.
 
-> Independent project. The 80 factory presets are
+> Independent project. The 152 factory presets are
 > original patches that recreate the *sound archetypes* popular wavetable synths are known for (supersaw,
 > reese, wobble, 303 acid, pluck, e-piano, riser, …).
 
@@ -12,8 +12,8 @@ Single self-contained executable, no runtime dependencies besides the system aud
 
 | Platform | Run |
 |---|---|
-| Windows 10/11 x64 | double-click `saviorsynth_v1_windows_x64.exe` |
-| Linux   | `chmod +x saviorsynth_v1_linux_x86_64 && ./saviorsynth_v1_linux_x86_64` (needs the usual desktop libraries: X11, Xinerama/Xcursor/Xfixes, pango, cairo, ALSA — present on any desktop distro; binary needs glibc 2.38+ = Ubuntu 24.04, Debian 13, Fedora 39 or newer; on an older distro just run `./build_all.sh`) |
+| Windows 10/11 x64 | double-click `saviorsynth_v2_windows_x64.exe` |
+| Linux   | `chmod +x saviorsynth_v2_linux_x86_64 && ./saviorsynth_v2_linux_x86_64` (needs the usual desktop libraries: X11, Xinerama/Xcursor/Xfixes, pango, cairo, ALSA — present on any desktop distro; binary needs glibc 2.38+ = Ubuntu 24.04, Debian 13, Fedora 39 or newer; on an older distro just run `./build_all.sh`) |
 
 Play with the on-screen keyboard (mouse; drag to glissando; click height = velocity), the computer keyboard,
 or a MIDI keyboard (first MIDI port is auto-connected; choose another in the top-right menu).
@@ -38,22 +38,28 @@ Double-click any knob to reset it · drag = change · **Shift+drag** = fine · m
 * **FX chain**: distortion (soft, hard, fold, tube, bitcrush, decimate) → stereo chorus → ping-pong delay (free or synced)
   → reverb → DC blocker → soft limiter.
 
-## Presets (80)
+## Presets (152)
 
 Init (3) · Bass (10: Reese, Wobble, Sub, Acid 303, FM Growl, Pluck, Rubber, Dubstep Growl, 808 Sub Boom, Wide Detuned) ·
 Lead (10: Supersaw, Sync, Screamer, Square, Hoover, Portamento, Trance, EDM Brass, Chiptune, Vocal) ·
 Pad (9) · Pluck (8) · Keys (8: E-Piano, Drawbar Organ, Clav, Tubular Bell, Vibraphone, …) · Stab (5) · Brass (2) ·
 Gate (2) · FX (7: Noise Riser, Downlifter, Laser Zap, Alien Whale, Wind, Impact Boom, Sci-Fi Sweep) ·
 Wavetables (16, one showcase patch per wavetable).
+
+**Style banks (72)** — original patches recreating the sound archetypes the most popular soft synths are known for.
+They are *not* copies of those products' factory presets (which are proprietary); each is built from scratch on this engine.
+- **Syl Style (25)** — Sylenth1-type subtractive saw/pulse stacks: trance gate lead, big-room saw, euphoric pluck arp, hoover, rave stab, house chord stab, uplifter/downlifter, acid, psy bass, 80s poly brass, …
+- **Diva Style (24)** — warm analog-modelled voices: ladder-Moog bass, Taurus pedal, Minimoog lead, Jupiter brass/strings, Juno chorus pad + sub bass, Prophet sweep, Oberheim stack, ARP screamer, CS-style brass, PWM strings, clav, Rhodes, Vangelis swell, …
+- **Serum Style (23)** — wavetable-first modern sound design: neuro growl, talking bass (formants), riddim, future-bass chord, vocal chop, trap bell, glitch lead, screech, evolving spectral pad, cinematic drone, lo-fi keys, wavetable pluck, FM glass arp, ring-mod robot, 808 glide, riser/noise FX, …
 `Save` / `Load` write plain-text `.scpreset` files (loaded files appear under the *User* category). `Random` makes a musical random patch.
 
 ## Command line
 
 ```
-saviorsynth_v1 --list                         list presets
-saviorsynth_v1 --render "supersaw" out.wav    render one preset to a 16-bit WAV (--note 48 --seconds 4)
-saviorsynth_v1 --render all outdir/           render every preset
-saviorsynth_v1 --selftest                     headless regression test: NaN / silence / clipping / CPU for all presets
+saviorsynth_v2 --list                         list presets
+saviorsynth_v2 --render "supersaw" out.wav    render one preset to a 16-bit WAV (--note 48 --seconds 4)
+saviorsynth_v2 --render all outdir/           render every preset
+saviorsynth_v2 --selftest                     headless regression test: NaN / silence / clipping / CPU for all presets
 ```
 
 ## Building
@@ -69,7 +75,7 @@ Cross-compiling for Windows uses mingw-w64 (POSIX threads); FLTK is compiled fro
 | `src/wavetable.rs` | in-house FFT, 16 wavetable generators, mip-mapped band-limited bank |
 | `src/engine.rs` | voices, oscillators/unison/warp, filter, envelopes, LFOs, mod matrix, voice allocation, render loop |
 | `src/fx.rs` | distortion, chorus, delay, reverb, DC blocker |
-| `src/presets.rs` | preset DSL + 80 factory presets + defensive file parser |
+| `src/presets.rs`, `src/presets/banks.rs` | preset DSL + 152 factory presets + defensive file parser |
 | `src/audio.rs`, `src/midi.rs` | cpal output stream, midir input (optional feature `midi`) |
 | `src/ui.rs` | FLTK interface (custom knobs/sliders/views/keyboard) |
 | `src/offline.rs` | WAV export + self-test |

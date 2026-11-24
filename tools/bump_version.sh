@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: tools/bump_version.sh <new-number>     e.g.  tools/bump_version.sh 2   (saviorsynth_v1 -> saviorsynth_v2)
+# Usage: tools/bump_version.sh <new-number>     e.g.  tools/bump_version.sh 2   (saviorsynth_v2 -> saviorsynth_v2)
 # Updates EVERY in-tree reference (Cargo.toml name+version, docs, scripts, doc file names) in one go so nothing is left stale.
 set -euo pipefail
 cd "$(dirname "$0")/.."

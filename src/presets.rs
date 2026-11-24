@@ -5,6 +5,7 @@
 //! `--selftest`, so a typo can never silently produce a wrong sound in release.
 
 use crate::params::*;
+mod banks;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static BAD: AtomicUsize = AtomicUsize::new(0);
@@ -370,6 +371,9 @@ pub fn factory() -> Vec<Preset> {
         let _ = i;
         out.push(b.done("Wavetables"));
     }
+
+    // Style banks (Sylenth1-/Diva-/Serum-style archetypes; original patches)
+    banks::add(&mut out);
     out
 }
 
@@ -419,7 +423,7 @@ mod tests {
     #[test]
     fn factory_presets_are_valid() {
         let f = factory();
-        assert!(f.len() >= 80);
+        assert!(f.len() >= 150);
         assert_eq!(bad_count(), 0, "unknown key/label used in a factory preset");
         for p in &f {
             assert_eq!(p.vals.len(), PARAM_COUNT);
