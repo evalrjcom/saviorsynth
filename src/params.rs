@@ -67,6 +67,18 @@ pub static SYNC_NAMES: [&str; 12] = ["Free", "1/1", "1/2", "1/4", "1/8", "1/16",
 pub static VOICE_MODES: [&str; 3] = ["Poly", "Mono", "Legato"];
 pub static MOD_SRCS: [&str; 11] = ["None", "Env 2", "Env 3", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Velocity", "Key", "Mod Wheel", "Random"];
 pub static MOD_DSTS: [&str; 17] = ["None", "A Position", "B Position", "A Warp", "B Warp", "A Pitch", "B Pitch", "A Level", "B Level", "Sub Level", "Noise Level", "Cutoff", "Resonance", "Drive", "Detune", "Pan", "Amp Level"];
+pub static CHORD_MODES: [&str; 4] = ["Off", "One-Key", "Degree", "Progression"];
+pub static SCALES: [&str; 5] = ["Major", "Minor", "Dorian", "Mixolydian", "Harm Minor"];
+pub static DEGREES: [&str; 7] = ["I", "II", "III", "IV", "V", "VI", "VII"];
+pub static CHORD_QUALS: [&str; 4] = ["Major", "Minor", "Dim", "Aug"];
+pub static CHORD_EXTS: [&str; 10] = ["Triad", "Sus2", "Sus4", "6th", "7th", "Dom 7", "9th", "Add9", "Power", "Octave"];
+pub static PROG_PATS: [&str; 11] = ["I-IV-V-I", "I-V-VI-IV", "II-V-I-I", "I-VI-IV-V", "VI-IV-I-V", "I-II-IV-I", "I-IV-II-V", "I-III-IV-V", "I-II-IV-V", "I-VII-VI-V", "Custom"];
+pub static PROG_LENS: [&str; 4] = ["2 bars", "1 bar", "1/2 bar", "1 beat"];
+pub static ARP_PATS: [&str; 14] = ["Up", "Down", "Up-Down", "Down-Up", "Up+Down", "Played", "Random", "Converge", "Diverge", "Thumb Up", "Pinky Up", "Stairs", "Alberti", "Chord Pulse"];
+pub static ARP_RATES: [&str; 8] = ["1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T", "1/8.", "1/16."];
+pub static INVERSIONS: [&str; 4] = ["Root", "1st", "2nd", "3rd"];
+pub static ARP_OCTS: [&str; 4] = ["1 Oct", "2 Oct", "3 Oct", "4 Oct"];
+pub static ARP_INVS: [&str; 4] = ["Fixed", "Cycle Up", "Cycle Down", "Ping-Pong"];
 pub static DIST_TYPES: [&str; 6] = ["Soft", "Hard", "Fold", "Tube", "Bitcrush", "Decimate"];
 
 pub const MASTER: usize = 0;
@@ -205,7 +217,30 @@ pub const R_ON: usize = 132;
 pub const R_SIZE: usize = 133;
 pub const R_DAMP: usize = 134;
 pub const R_MIX: usize = 135;
-pub const PARAM_COUNT: usize = 136;
+pub const CH_MODE: usize = 136;
+pub const CH_SCALE: usize = 137;
+pub const CH_DEG: usize = 138;
+pub const CH_QUAL: usize = 139;
+pub const CH_EXT: usize = 140;
+pub const CH_INV: usize = 141;
+pub const CH_OPEN: usize = 142;
+pub const CH_BASS: usize = 143;
+pub const PR_PAT: usize = 144;
+pub const PR_LEN: usize = 145;
+pub const PR_S1: usize = 146;
+pub const PR_S2: usize = 147;
+pub const PR_S3: usize = 148;
+pub const PR_S4: usize = 149;
+pub const AR_ON: usize = 150;
+pub const AR_PAT: usize = 151;
+pub const AR_RATE: usize = 152;
+pub const AR_OCT: usize = 153;
+pub const AR_GATE: usize = 154;
+pub const AR_SWING: usize = 155;
+pub const AR_INVM: usize = 156;
+pub const AR_LATCH: usize = 157;
+pub const AR_ACC: usize = 158;
+pub const PARAM_COUNT: usize = 159;
 
 pub static PARAMS: [ParamDef; PARAM_COUNT] = [
     ParamDef { key: "MASTER", name: "Master", min: 0.0, max: 1.0, def: 0.7, kind: Kind::Lin, unit: Unit::Pct },
@@ -344,6 +379,29 @@ pub static PARAMS: [ParamDef; PARAM_COUNT] = [
     ParamDef { key: "R_SIZE", name: "Size", min: 0.0, max: 1.0, def: 0.6, kind: Kind::Lin, unit: Unit::Pct },
     ParamDef { key: "R_DAMP", name: "Damp", min: 0.0, max: 1.0, def: 0.5, kind: Kind::Lin, unit: Unit::Pct },
     ParamDef { key: "R_MIX", name: "Mix", min: 0.0, max: 1.0, def: 0.25, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "CH_MODE", name: "Chord Mode", min: 0.0, max: 3.0, def: 0.0, kind: Kind::Enum(&CHORD_MODES), unit: Unit::None },
+    ParamDef { key: "CH_SCALE", name: "Scale", min: 0.0, max: 4.0, def: 0.0, kind: Kind::Enum(&SCALES), unit: Unit::None },
+    ParamDef { key: "CH_DEG", name: "Degree", min: 0.0, max: 6.0, def: 0.0, kind: Kind::Enum(&DEGREES), unit: Unit::None },
+    ParamDef { key: "CH_QUAL", name: "Quality", min: 0.0, max: 3.0, def: 0.0, kind: Kind::Enum(&CHORD_QUALS), unit: Unit::None },
+    ParamDef { key: "CH_EXT", name: "Variation", min: 0.0, max: 9.0, def: 0.0, kind: Kind::Enum(&CHORD_EXTS), unit: Unit::None },
+    ParamDef { key: "CH_INV", name: "Inversion", min: 0.0, max: 3.0, def: 0.0, kind: Kind::Enum(&INVERSIONS), unit: Unit::None },
+    ParamDef { key: "CH_OPEN", name: "Open", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Bool, unit: Unit::None },
+    ParamDef { key: "CH_BASS", name: "Bass", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Bool, unit: Unit::None },
+    ParamDef { key: "PR_PAT", name: "Progression", min: 0.0, max: 10.0, def: 0.0, kind: Kind::Enum(&PROG_PATS), unit: Unit::None },
+    ParamDef { key: "PR_LEN", name: "Step Len", min: 0.0, max: 3.0, def: 1.0, kind: Kind::Enum(&PROG_LENS), unit: Unit::None },
+    ParamDef { key: "PR_S1", name: "Step 1", min: 0.0, max: 6.0, def: 0.0, kind: Kind::Enum(&DEGREES), unit: Unit::None },
+    ParamDef { key: "PR_S2", name: "Step 2", min: 0.0, max: 6.0, def: 3.0, kind: Kind::Enum(&DEGREES), unit: Unit::None },
+    ParamDef { key: "PR_S3", name: "Step 3", min: 0.0, max: 6.0, def: 4.0, kind: Kind::Enum(&DEGREES), unit: Unit::None },
+    ParamDef { key: "PR_S4", name: "Step 4", min: 0.0, max: 6.0, def: 0.0, kind: Kind::Enum(&DEGREES), unit: Unit::None },
+    ParamDef { key: "AR_ON", name: "On", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Bool, unit: Unit::None },
+    ParamDef { key: "AR_PAT", name: "Pattern", min: 0.0, max: 13.0, def: 0.0, kind: Kind::Enum(&ARP_PATS), unit: Unit::None },
+    ParamDef { key: "AR_RATE", name: "Rate", min: 0.0, max: 7.0, def: 2.0, kind: Kind::Enum(&ARP_RATES), unit: Unit::None },
+    ParamDef { key: "AR_OCT", name: "Octaves", min: 0.0, max: 3.0, def: 0.0, kind: Kind::Enum(&ARP_OCTS), unit: Unit::None },
+    ParamDef { key: "AR_GATE", name: "Gate", min: 0.05, max: 1.0, def: 0.6, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "AR_SWING", name: "Swing", min: 0.0, max: 0.6, def: 0.0, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "AR_INVM", name: "Inversions", min: 0.0, max: 3.0, def: 0.0, kind: Kind::Enum(&ARP_INVS), unit: Unit::None },
+    ParamDef { key: "AR_LATCH", name: "Latch", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Bool, unit: Unit::None },
+    ParamDef { key: "AR_ACC", name: "Accent", min: 0.0, max: 1.0, def: 0.3, kind: Kind::Lin, unit: Unit::Pct },
 ];
 
 pub struct OscP { pub on: usize, pub wt: usize, pub pos: usize, pub wmode: usize, pub warp: usize, pub oct: usize, pub semi: usize, pub fine: usize, pub uni: usize, pub det: usize, pub blend: usize, pub phase: usize, pub rand: usize, pub level: usize, pub pan: usize, pub spread: usize }

@@ -620,7 +620,7 @@ pub fn run(bank: Arc<WaveBank>, list: Vec<Preset>) {
     let c = Ctx { sh: sh.clone(), bank: bank.clone(), refresh: refresh.clone() };
     let pressed: Pressed = Rc::new(RefCell::new([0u8; 128]));
 
-    let mut win = window::Window::new(60, 40, 1240, 712, "");
+    let mut win = window::Window::new(60, 40, 1240, 804, "");
     win.set_label(&format!("{} {}", APP_ID, APP_VERSION));
     win.set_color(col(BG));
     win.make_resizable(false);
@@ -792,11 +792,45 @@ pub fn run(bank: Arc<WaveBank>, list: Vec<Preset>) {
         ctl(&c, x + 102, r3 + 40, 48, 66, R_MIX, "Mix", Style::Knob);
     }
 
+    // ---------------------------------------------------- performance: chords / progressions / arpeggiator
+    let r4 = 604;
+    let mut chord_lbl = label(500, r4 + 60, 160, 34, "", ACC2, 20);
+    {
+        let x = 8;
+        panel(x, r4, 660, 100, "CHORDS  &  PROGRESSIONS   (play ONE key)");
+        let h = |t: &str, px: i32, py: i32| { label(px, py, 100, 11, t, DIM, 8); };
+        let mut px = x + 6;
+        for (t, p, w) in [("MODE", CH_MODE, 100), ("SCALE", CH_SCALE, 94), ("DEGREE", CH_DEG, 58), ("QUALITY", CH_QUAL, 78), ("VARIATION", CH_EXT, 90), ("INVERSION", CH_INV, 70)] {
+            h(t, px, r4 + 17); choice(&c, px, r4 + 29, w, 20, p); px += w + 6;
+        }
+        toggle(&c, px, r4 + 29, 44, 20, CH_OPEN, "Open"); toggle(&c, px + 48, r4 + 29, 44, 20, CH_BASS, "Bass");
+        h("PROGRESSION", x + 6, r4 + 54); choice(&c, x + 6, r4 + 66, 124, 20, PR_PAT);
+        h("STEP LENGTH", x + 136, r4 + 54); choice(&c, x + 136, r4 + 66, 74, 20, PR_LEN);
+        h("CUSTOM STEPS (when Progression = Custom)", x + 216, r4 + 54);
+        for (i, p) in [PR_S1, PR_S2, PR_S3, PR_S4].iter().enumerate() { choice(&c, x + 216 + i as i32 * 62, r4 + 66, 58, 20, *p); }
+    }
+    {
+        let x = 672;
+        panel(x, r4, 560, 100, "ARPEGGIATOR");
+        let h = |t: &str, px: i32, py: i32| { label(px, py, 100, 11, t, DIM, 8); };
+        toggle(&c, x + 6, r4 + 29, 44, 20, AR_ON, "ON");
+        let mut px = x + 56;
+        for (t, p, w) in [("PATTERN", AR_PAT, 112), ("RATE", AR_RATE, 58), ("OCTAVES", AR_OCT, 66), ("INVERSION CYCLE", AR_INVM, 100)] {
+            h(t, px, r4 + 17); choice(&c, px, r4 + 29, w, 20, p); px += w + 6;
+        }
+        toggle(&c, px, r4 + 29, 52, 20, AR_LATCH, "Latch");
+        for (i, (t, p)) in [("GATE", AR_GATE), ("SWING", AR_SWING), ("ACCENT", AR_ACC)].iter().enumerate() {
+            let sx = x + 8 + i as i32 * 184;
+            h(t, sx, r4 + 58); ctl(&c, sx, r4 + 68, 170, 22, *p, "", Style::HSlider);
+        }
+    }
+    chord_lbl.set_label_font(Font::HelveticaBold);
+
     // ---------------------------------------------------- keyboard
-    let r4 = 606;
-    wheel(sh.clone(), 8, r4, 28, 100, true);
-    wheel(sh.clone(), 40, r4, 28, 100, false);
-    let mut kb = keyboard(sh.clone(), pressed.clone(), 76, r4, 100);
+    let r5 = r4 + 104;
+    wheel(sh.clone(), 8, r5, 28, 84, true);
+    wheel(sh.clone(), 40, r5, 28, 84, false);
+    let mut kb = keyboard(sh.clone(), pressed.clone(), 76, r5, 84);
     let octave = Rc::new(Cell::new(48i32));
     win.end();
 
@@ -925,7 +959,12 @@ pub fn run(bank: Arc<WaveBank>, list: Vec<Preset>) {
         let (mut scope_w, mut meter_w) = (scope.0.clone(), scope.1.clone());
         let (sh, mut kbw) = (sh.clone(), kb.clone());
         let last = Rc::new(Cell::new(u32::MAX));
+        let mut chord_w = chord_lbl.clone();
+        let last_chord = Rc::new(RefCell::new(String::new()));
         app::add_timeout3(0.04, move |h| {
+            let r = sh.chord_root.load(std::sync::atomic::Ordering::Relaxed);
+            let name = if r == u32::MAX { String::new() } else { crate::perform::chord_name(r as i32, sh.chord_mask.load(std::sync::atomic::Ordering::Relaxed)) };
+            if *last_chord.borrow() != name { chord_w.set_label(&name); chord_w.redraw(); *last_chord.borrow_mut() = name; }
             scope_w.redraw(); meter_w.redraw(); kbw.redraw();
             let n = sh.voices.load(std::sync::atomic::Ordering::Relaxed);
             if n != last.get() { last.set(n); voices_lbl.set_label(&format!("Voices: {}", n)); voices_lbl.redraw(); }

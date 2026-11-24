@@ -5,6 +5,10 @@
 
 use super::{Preset, B};
 
+pub mod vintage;
+pub mod hits;
+pub mod playable;
+
 pub fn add(out: &mut Vec<Preset>) {
     macro_rules! p {
         ($cat:expr, $name:expr, |$b:ident| $body:block) => {{ let mut $b = B::new($name); $body; out.push($b.done($cat)); }};

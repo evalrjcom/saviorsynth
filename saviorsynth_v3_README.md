@@ -1,10 +1,10 @@
-# saviorsynth_v2 — wavetable synthesizer (Rust + FLTK)
+# saviorsynth_v3 — wavetable synthesizer (Rust + FLTK)
 
-A standalone wavetable synth for **Windows (x64)** and **Linux (x86_64)**.
+A standalone wavetable synth with one-key chords, progressions and an arpeggiator for **Windows (x64)** and **Linux (x86_64)**.
 Single self-contained executable, no runtime dependencies besides the system audio/GUI libraries
 (WASAPI/Win32 on Windows, ALSA/X11 on Linux). Not a VST/AU plugin — it opens its own window and audio device.
 
-> Independent project. The 152 factory presets are
+> Independent project. The 285 factory presets are
 > original patches that recreate the *sound archetypes* popular wavetable synths are known for (supersaw,
 > reese, wobble, 303 acid, pluck, e-piano, riser, …).
 
@@ -12,8 +12,8 @@ Single self-contained executable, no runtime dependencies besides the system aud
 
 | Platform | Run |
 |---|---|
-| Windows 10/11 x64 | double-click `saviorsynth_v2_windows_x64.exe` |
-| Linux   | `chmod +x saviorsynth_v2_linux_x86_64 && ./saviorsynth_v2_linux_x86_64` (needs the usual desktop libraries: X11, Xinerama/Xcursor/Xfixes, pango, cairo, ALSA — present on any desktop distro; binary needs glibc 2.38+ = Ubuntu 24.04, Debian 13, Fedora 39 or newer; on an older distro just run `./build_all.sh`) |
+| Windows 10/11 x64 | double-click `saviorsynth_v3_windows_x64.exe` |
+| Linux   | `chmod +x saviorsynth_v3_linux_x86_64 && ./saviorsynth_v3_linux_x86_64` (needs the usual desktop libraries: X11, Xinerama/Xcursor/Xfixes, pango, cairo, ALSA — present on any desktop distro; binary needs glibc 2.38+ = Ubuntu 24.04, Debian 13, Fedora 39 or newer; on an older distro just run `./build_all.sh`) |
 
 Play with the on-screen keyboard (mouse; drag to glissando; click height = velocity), the computer keyboard,
 or a MIDI keyboard (first MIDI port is auto-connected; choose another in the top-right menu).
@@ -38,13 +38,24 @@ Double-click any knob to reset it · drag = change · **Shift+drag** = fine · m
 * **FX chain**: distortion (soft, hard, fold, tube, bitcrush, decimate) → stereo chorus → ping-pong delay (free or synced)
   → reverb → DC blocker → soft limiter.
 
-## Presets (152)
+## Presets (285)
 
 Init (3) · Bass (10: Reese, Wobble, Sub, Acid 303, FM Growl, Pluck, Rubber, Dubstep Growl, 808 Sub Boom, Wide Detuned) ·
 Lead (10: Supersaw, Sync, Screamer, Square, Hoover, Portamento, Trance, EDM Brass, Chiptune, Vocal) ·
 Pad (9) · Pluck (8) · Keys (8: E-Piano, Drawbar Organ, Clav, Tubular Bell, Vibraphone, …) · Stab (5) · Brass (2) ·
 Gate (2) · FX (7: Noise Riser, Downlifter, Laser Zap, Alien Whale, Wind, Impact Boom, Sci-Fi Sweep) ·
 Wavetables (16, one showcase patch per wavetable).
+
+**Vintage banks (60)** — approximations of the *character* of classic hardware (no samples, no vendor presets):
+- **70s Synths (29)** — Minimoog lead/bass/brass, ARP Odyssey sync + ring-mod, ARP 2600 drone, ARP String Ensemble, Moog modular sweep, Prophet-5 brass/pad, Oberheim SEM pad, CS-80 brass/pad, Polymoog Vox Humana, Mellotron strings/flute/choir, Korg MS-20 screamer/bass, Jupiter-4 strings, EMS VCS3 blips, Clavinet, Rhodes, Wurlitzer, Hammond B3, Pro-One, Taurus pedal, SH-5 …
+- **80s Synths (31)** — DX7 e-piano/slap bass/marimba/bell/brass, Juno-60/106 pads and strings, Jupiter-8 brass/strings/sweep/arp pluck, OB-Xa stab, OB-8 brass pad, Prophet-600 pluck, Prophet VS vector pad, PPG glass pad + digital bell, Fairlight orchestra stab + ArcoPad, Synclavier pluck, D-50 pads, Korg M1 organ, Casio CZ bass/bell, SH-101, TB-303, Memorymoog, Emulator II strings …
+
+**Hit Sounds (20)** — original patches approximating the signature *synth timbre* of famous chart-topping records
+(e.g. "Jump-style Brass", "Billie Jean-style Bass", "Sweet Dreams-style Pulse Bass", "Take On Me-style Synth Lead",
+"I Feel Love-style Sequence", "Blinding Lights-style Synth" …). Only the sound character is imitated: no melodies, lyrics,
+samples or recordings are included, and the project is not affiliated with the artists.
+
+**Playable banks (53)** — **Chords (17)**, **Progressions (14)** and **Arps (22)**, ready to play with one finger (see below).
 
 **Style banks (72)** — original patches recreating the sound archetypes the most popular soft synths are known for.
 They are *not* copies of those products' factory presets (which are proprietary); each is built from scratch on this engine.
@@ -53,13 +64,35 @@ They are *not* copies of those products' factory presets (which are proprietary)
 - **Serum Style (23)** — wavetable-first modern sound design: neuro growl, talking bass (formants), riddim, future-bass chord, vocal chop, trap bell, glitch lead, screech, evolving spectral pad, cinematic drone, lo-fi keys, wavetable pluck, FM glass arp, ring-mod robot, 808 glide, riser/noise FX, …
 `Save` / `Load` write plain-text `.scpreset` files (loaded files appear under the *User* category). `Random` makes a musical random patch.
 
+## Chords, progressions and the arpeggiator
+
+The bottom panels sit between your keys and the voices. Play **one key** and the synth plays the rest.
+
+**CHORDS & PROGRESSIONS** (`Mode`)
+| Mode | What one key does |
+|---|---|
+| Off | normal playback |
+| One-Key | the key is the chord **root**; `Quality` = Major / Minor / Dim / Aug |
+| Degree | the key is the **tonic**; the chord is scale degree **I, II, III, IV, V, VI or VII** of the chosen `Scale` (diatonic quality) |
+| Progression | the key is the tonic; the chord **steps through a progression** (I-IV-V-I, I-V-VI-IV, II-V-I, I-VI-IV-V, VI-IV-I-V, **I-II-IV-I**, I-IV-II-V, I-III-IV-V, I-II-IV-V, I-VII-VI-V, or **Custom** steps 1-4) every `Step Length` (2 bars / 1 bar / 1/2 bar / 1 beat, tempo from `BPM`) |
+
+`Scale`: Major, Minor, Dorian, Mixolydian, Harmonic Minor. `Variation`: Triad, Sus2, Sus4, 6th, 7th (diatonic), Dom 7, 9th, Add9, Power (5th), Octave.
+`Inversion`: Root / 1st / 2nd / 3rd. `Open` = drop-2 voicing. `Bass` = add the chord root an octave below.
+The detected chord name (e.g. *Fmaj7*) is shown in the panel while a chord plays. In One-Key mode, several held keys each play their own chord.
+
+**ARPEGGIATOR** — works on held keys *or* on the generated chords/progression.
+- `Pattern`: Up, Down, Up-Down, Down-Up, Up+Down, Played (key order), Random, Converge, Diverge, Thumb Up, Pinky Up, Stairs, Alberti, Chord Pulse.
+- `Rate`: 1/4, 1/8, 1/16, 1/32, triplets 1/8T, 1/16T, dotted 1/8., 1/16.   `Octaves`: 1-4.   `Gate`, `Swing`, `Accent`, `Latch`.
+- `Inversion Cycle` (**inverted chord shapes**): Fixed, Cycle Up, Cycle Down or Ping-Pong — each completed pattern cycle moves the chord to its next inversion.
+- The stage runs on the audio thread with fixed-size buffers (no allocation); toggling it mid-note never leaves stuck notes.
+
 ## Command line
 
 ```
-saviorsynth_v2 --list                         list presets
-saviorsynth_v2 --render "supersaw" out.wav    render one preset to a 16-bit WAV (--note 48 --seconds 4)
-saviorsynth_v2 --render all outdir/           render every preset
-saviorsynth_v2 --selftest                     headless regression test: NaN / silence / clipping / CPU for all presets
+saviorsynth_v3 --list                         list presets
+saviorsynth_v3 --render "supersaw" out.wav    render one preset to a 16-bit WAV (--note 48 --seconds 4)
+saviorsynth_v3 --render all outdir/           render every preset
+saviorsynth_v3 --selftest                     headless regression test: NaN / silence / clipping / CPU for all presets
 ```
 
 ## Building
@@ -75,9 +108,10 @@ Cross-compiling for Windows uses mingw-w64 (POSIX threads); FLTK is compiled fro
 | `src/wavetable.rs` | in-house FFT, 16 wavetable generators, mip-mapped band-limited bank |
 | `src/engine.rs` | voices, oscillators/unison/warp, filter, envelopes, LFOs, mod matrix, voice allocation, render loop |
 | `src/fx.rs` | distortion, chorus, delay, reverb, DC blocker |
-| `src/presets.rs`, `src/presets/banks.rs` | preset DSL + 152 factory presets + defensive file parser |
+| `src/presets.rs`, `src/presets/banks*.rs` | preset DSL + 285 factory presets + defensive file parser |
 | `src/audio.rs`, `src/midi.rs` | cpal output stream, midir input (optional feature `midi`) |
 | `src/ui.rs` | FLTK interface (custom knobs/sliders/views/keyboard) |
+| `src/perform.rs` | one-key chords, scale degrees, progressions, arpeggiator patterns + inversion cycling (real-time safe, unit-tested) |
 | `src/offline.rs` | WAV export + self-test |
 
 Real-time rules: the audio callback never locks, allocates or does I/O; the UI and MIDI threads talk to it only through

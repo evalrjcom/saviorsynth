@@ -27,6 +27,8 @@ pub struct Shared {
     pub scope: Vec<AtomicU32>,
     pub scope_pos: AtomicUsize,
     pub sample_rate: AtomicU32,
+    pub chord_root: AtomicU32, // MIDI note of the sounding chord root, or u32::MAX when none
+    pub chord_mask: AtomicU32, // bit d set = chord contains root+d semitones
 }
 
 impl Shared {
@@ -42,6 +44,8 @@ impl Shared {
             scope: (0..SCOPE_LEN).map(|_| AtomicU32::new(0)).collect(),
             scope_pos: AtomicUsize::new(0),
             sample_rate: AtomicU32::new(48000),
+            chord_root: AtomicU32::new(u32::MAX),
+            chord_mask: AtomicU32::new(0),
         })
     }
     /// Never blocks; silently drops the event if the queue is full (only possible under a flood).

@@ -4,6 +4,7 @@
 
 use crate::fx::{flush, tanh_fast, Fx};
 use crate::params::*;
+use crate::perform::Performer;
 use crate::shared::{Event, Shared, SCOPE_LEN};
 use crate::wavetable::{WaveBank, N_FRAMES, TABLE_SIZE};
 use std::f32::consts::PI;
@@ -436,6 +437,9 @@ pub struct Engine {
     fx: Fx,
     glob_lfo: [f32; 4],
     stack: Vec<(u8, u8)>,
+    perf: Performer,
+    perf_act: bool,
+    latch: bool,
     sustain: bool,
     last_pitch: f32,
     age: u64,
@@ -456,7 +460,7 @@ impl Engine {
             sr, shared, bank, snap,
             voices: (0..MAX_VOICES).map(|i| Voice::new(0x9E3779B9u32.wrapping_mul(i as u32 + 1))).collect(),
             fx: Fx::new(sr), glob_lfo: [0.0; 4],
-            stack: Vec::with_capacity(64), sustain: false, last_pitch: 60.0, age: 0, bend_s: 0.0,
+            stack: Vec::with_capacity(64), perf: Performer::new(), perf_act: false, latch: false, sustain: false, last_pitch: 60.0, age: 0, bend_s: 0.0,
             stage_l: [0.0; BLOCK], stage_r: [0.0; BLOCK], pos: BLOCK, pk_l: 0.0, pk_r: 0.0, scope_ctr: 0,
         }
     }
@@ -542,12 +546,48 @@ impl Engine {
         for v in self.voices.iter_mut() { if v.active { v.sustained = false; v.release(); } }
     }
 
+    /// Release every sounding voice but keep the sustain-pedal state (used when the performance stage takes over).
+    fn release_voices(&mut self) {
+        self.stack.clear();
+        for v in self.voices.iter_mut() { if v.active { v.sustained = false; v.release(); } }
+    }
+
+    fn apply_perf(&mut self, n: usize) {
+        for i in 0..n {
+            let e = self.perf.out[i];
+            if e.on { self.note_on(e.note, e.vel); } else { self.note_off(e.note); }
+        }
+    }
+
+    /// Chord / progression / arpeggiator stage. Keys are always tracked; they reach the voices
+    /// directly only while the stage is inactive, so toggling it mid-note never leaves stuck notes.
+    fn run_performance(&mut self) {
+        let act = self.snap[CH_MODE] >= 0.5 || self.snap[AR_ON] >= 0.5;
+        let latch = self.snap[AR_LATCH] >= 0.5;
+        if self.latch && !latch { self.perf.unlatch(); }
+        self.latch = latch;
+        if act && !self.perf_act { self.release_voices(); }
+        let was = self.perf_act;
+        self.perf_act = act;
+        if act || was || self.perf.info_root >= 0 {
+            let n = self.perf.process(&self.snap, self.snap[BPM], self.sr);
+            self.apply_perf(n);
+            let (r, m) = (self.perf.info_root, self.perf.info_mask);
+            self.shared.chord_root.store(if r >= 0 { r as u32 } else { u32::MAX }, Ordering::Relaxed);
+            self.shared.chord_mask.store(m, Ordering::Relaxed);
+        }
+        if was && !act {
+            // hand the physically held keys back to the voices as ordinary notes
+            for i in 0..self.perf.held().len() { let (k, v) = self.perf.held()[i]; self.note_on(k, v); }
+        }
+    }
+
     fn drain_events(&mut self) {
         for _ in 0..128 {
             match self.shared.events.pop() {
-                Some(Event::NoteOn(n, v)) => self.note_on(n, v),
-                Some(Event::NoteOff(n)) => self.note_off(n),
-                Some(Event::AllOff) => self.all_off(),
+                Some(Event::NoteOn(n, v)) => { self.perf.track_on(n, v, self.latch); if !self.perf_act { self.note_on(n, v); } }
+                Some(Event::NoteOff(n)) => { self.perf.track_off(n, self.latch); if !self.perf_act { self.note_off(n); } }
+                Some(Event::AllOff) => { self.perf.reset(); self.all_off(); }
                 Some(Event::Sustain(b)) => self.set_sustain(b),
                 None => break,
             }
@@ -560,6 +600,7 @@ impl Engine {
             if PARAMS[i].is_discrete() { self.snap[i] = r; } else { self.snap[i] += (r - self.snap[i]) * SMOOTH; }
         }
         self.drain_events();
+        self.run_performance();
         let inv_sr = 1.0 / self.sr;
         let bpm = self.snap[BPM];
         let target_bend = self.shared.get_bend() * self.snap[BEND];

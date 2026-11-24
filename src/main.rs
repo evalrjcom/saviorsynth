@@ -7,6 +7,7 @@ mod fx;
 mod midi;
 mod offline;
 mod params;
+mod perform;
 mod presets;
 mod shared;
 mod ui;

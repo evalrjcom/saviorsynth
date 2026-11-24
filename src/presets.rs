@@ -62,6 +62,12 @@ impl B {
             .m(slot, &l, "A Pitch", depth).m(slot + 1, &l, "B Pitch", depth)
     }
     fn mono(&mut self, glide: f32, legato: bool) -> &mut B { self.e("MODE", if legato { "Legato" } else { "Mono" }).n("GLIDE", glide) }
+    /// Chord stage: mode = "One-Key" | "Degree" | "Progression"; ext = variation ("Triad", "7th", "Sus4", ...).
+    fn chord(&mut self, mode: &str, ext: &str) -> &mut B { self.e("CH_MODE", mode).e("CH_EXT", ext) }
+    /// One-key progression: pattern label (e.g. "I-V-VI-IV") and step length ("1 bar", "1/2 bar", ...).
+    fn prog(&mut self, pat: &str, len: &str) -> &mut B { self.e("CH_MODE", "Progression").e("PR_PAT", pat).e("PR_LEN", len) }
+    /// Arpeggiator: pattern, rate, octave span ("1 Oct".."4 Oct"), gate length.
+    fn arp(&mut self, pat: &str, rate: &str, oct: &str, gate: f32) -> &mut B { self.on("AR_ON", true).e("AR_PAT", pat).e("AR_RATE", rate).e("AR_OCT", oct).n("AR_GATE", gate) }
     fn done(&self, cat: &str) -> Preset { Preset { name: self.name.clone(), cat: cat.to_string(), vals: self.v.clone() } }
 }
 
@@ -374,6 +380,9 @@ pub fn factory() -> Vec<Preset> {
 
     // Style banks (Sylenth1-/Diva-/Serum-style archetypes; original patches)
     banks::add(&mut out);
+    banks::vintage::add(&mut out);
+    banks::hits::add(&mut out);
+    banks::playable::add(&mut out);
     out
 }
 
@@ -423,7 +432,7 @@ mod tests {
     #[test]
     fn factory_presets_are_valid() {
         let f = factory();
-        assert!(f.len() >= 150);
+        assert!(f.len() >= 250);
         assert_eq!(bad_count(), 0, "unknown key/label used in a factory preset");
         for p in &f {
             assert_eq!(p.vals.len(), PARAM_COUNT);

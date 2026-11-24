@@ -12,6 +12,18 @@ ENUMS = {
  "VOICE_MODES": ["Poly","Mono","Legato"],
  "MOD_SRCS": ["None","Env 2","Env 3","LFO 1","LFO 2","LFO 3","LFO 4","Velocity","Key","Mod Wheel","Random"],
  "MOD_DSTS": ["None","A Position","B Position","A Warp","B Warp","A Pitch","B Pitch","A Level","B Level","Sub Level","Noise Level","Cutoff","Resonance","Drive","Detune","Pan","Amp Level"],
+ "CHORD_MODES": ["Off","One-Key","Degree","Progression"],
+ "SCALES": ["Major","Minor","Dorian","Mixolydian","Harm Minor"],
+ "DEGREES": ["I","II","III","IV","V","VI","VII"],
+ "CHORD_QUALS": ["Major","Minor","Dim","Aug"],
+ "CHORD_EXTS": ["Triad","Sus2","Sus4","6th","7th","Dom 7","9th","Add9","Power","Octave"],
+ "PROG_PATS": ["I-IV-V-I","I-V-VI-IV","II-V-I-I","I-VI-IV-V","VI-IV-I-V","I-II-IV-I","I-IV-II-V","I-III-IV-V","I-II-IV-V","I-VII-VI-V","Custom"],
+ "PROG_LENS": ["2 bars","1 bar","1/2 bar","1 beat"],
+ "ARP_PATS": ["Up","Down","Up-Down","Down-Up","Up+Down","Played","Random","Converge","Diverge","Thumb Up","Pinky Up","Stairs","Alberti","Chord Pulse"],
+ "ARP_RATES": ["1/4","1/8","1/16","1/32","1/8T","1/16T","1/8.","1/16."],
+ "INVERSIONS": ["Root","1st","2nd","3rd"],
+ "ARP_OCTS": ["1 Oct","2 Oct","3 Oct","4 Oct"],
+ "ARP_INVS": ["Fixed","Cycle Up","Cycle Down","Ping-Pong"],
  "DIST_TYPES": ["Soft","Hard","Fold","Tube","Bitcrush","Decimate"],
 }
 P = []  # (const, display, min, max, def, kind, unit)
@@ -96,6 +108,29 @@ add("R_ON","On",0,1,0,"Bool")
 add("R_SIZE","Size",0,1,0.6,"Lin","Pct")
 add("R_DAMP","Damp",0,1,0.5,"Lin","Pct")
 add("R_MIX","Mix",0,1,0.25,"Lin","Pct")
+
+# ---- performance: chords / progressions / arpeggiator (processed in src/perform.rs)
+add("CH_MODE","Chord Mode",0,3,0,en("CHORD_MODES"))
+add("CH_SCALE","Scale",0,4,0,en("SCALES"))
+add("CH_DEG","Degree",0,6,0,en("DEGREES"))
+add("CH_QUAL","Quality",0,3,0,en("CHORD_QUALS"))
+add("CH_EXT","Variation",0,9,0,en("CHORD_EXTS"))
+add("CH_INV","Inversion",0,3,0,en("INVERSIONS"))
+add("CH_OPEN","Open",0,1,0,"Bool")
+add("CH_BASS","Bass",0,1,0,"Bool")
+add("PR_PAT","Progression",0,10,0,en("PROG_PATS"))
+add("PR_LEN","Step Len",0,3,1,en("PROG_LENS"))
+for i in range(1,5):
+    add("PR_S%d"%i,"Step %d"%i,0,6,[0,3,4,0][i-1],en("DEGREES"))
+add("AR_ON","On",0,1,0,"Bool")
+add("AR_PAT","Pattern",0,13,0,en("ARP_PATS"))
+add("AR_RATE","Rate",0,7,2,en("ARP_RATES"))
+add("AR_OCT","Octaves",0,3,0,en("ARP_OCTS"))
+add("AR_GATE","Gate",0.05,1,0.6,"Lin","Pct")
+add("AR_SWING","Swing",0,0.6,0,"Lin","Pct")
+add("AR_INVM","Inversions",0,3,0,en("ARP_INVS"))
+add("AR_LATCH","Latch",0,1,0,"Bool")
+add("AR_ACC","Accent",0,1,0.3,"Lin","Pct")
 
 idx = {p[0]: i for i, p in enumerate(P)}
 out = []

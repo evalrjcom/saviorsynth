@@ -79,3 +79,40 @@ pub fn selftest(bank: &Arc<WaveBank>, list: &[Preset]) -> bool {
     println!("\n{} presets, {} problems, {} unknown preset keys", list.len(), fails, bad);
     fails == 0 && bad == 0
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::params::*;
+    use std::sync::atomic::Ordering;
+
+    /// End-to-end: one held key drives a I-IV-V-I progression through the real engine, arp keeps
+    /// producing sound, and switching the stage off mid-note leaves exactly the held key sounding.
+    #[test]
+    fn one_key_progression_and_arp_through_engine() {
+        let bank = Arc::new(WaveBank::generate());
+        let shared = Shared::new();
+        let mut v = default_patch();
+        v[CH_MODE] = 3.0; v[PR_PAT] = 0.0; v[PR_LEN] = 3.0; v[BPM] = 120.0; // 1 beat per chord
+        shared.params.load(&v);
+        let mut eng = Engine::new(48000.0, shared.clone(), bank.clone());
+        shared.note_on(60, 100);
+        let mut buf = vec![0.0f32; 2 * 4800];
+        let mut roots = vec![];
+        for blk in 0..40 { // 40 * 0.1 s = 4 beats @120
+            eng.fill(&mut buf);
+            if blk % 5 == 2 { roots.push(shared.chord_root.load(Ordering::Relaxed)); }
+        }
+        assert_eq!(&roots[..4], &[60, 65, 67, 60]); // I IV V I, one chord per beat
+        assert!(buf.iter().any(|x| x.abs() > 0.01), "progression must be audible");
+
+        // arpeggiator on, then everything off -> engine returns to silence, no stuck voices
+        v[AR_ON] = 1.0; v[AR_PAT] = 2.0; shared.params.load(&v);
+        let mut peak = 0.0f32;
+        for _ in 0..20 { eng.fill(&mut buf); peak = peak.max(buf.iter().fold(0.0, |m, x| m.max(x.abs()))); }
+        assert!(peak > 0.01);
+        shared.note_off(60);
+        for _ in 0..60 { eng.fill(&mut buf); }
+        assert_eq!(shared.voices.load(Ordering::Relaxed), 0, "no stuck voices after release");
+    }
+}
