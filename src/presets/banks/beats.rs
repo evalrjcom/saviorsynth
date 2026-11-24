@@ -18,27 +18,27 @@ pub fn add(out: &mut Vec<Preset>) {
     });
     p!("Beat Boom Bap Keys", |b| {
         b.osc('A', "E-Piano", 0.4, 1.0, 0.0, 0.7).filt("LP 12", 3500.0, 0.05).env(1, 0.002, 1.2, 0.0, 0.4).chorus(0.3).reverb(0.35, 0.3);
-        b.prog("II-V-I-I", "1 bar").e("CH_EXT", "7th").e("DR_KIT", "808 Kit").drums("Hip-Hop Boom Bap", 88.0, 0.3).n("HUM_TIME", 0.4).n("HUM_VEL", 0.4);
+        b.prog("II-V-I-I", "1 bar").e("CH_EXT", "7th").e("DR_KIT", "DMX Kit").drums("Hip-Hop Boom Bap", 88.0, 0.3).n("HUM_TIME", 0.4).n("HUM_VEL", 0.4);
     });
     p!("Beat Trap Pluck Arp", |b| {
         b.saw('A', 3.0, 0.15, 0.6).filt("LP 24", 1400.0, 0.2).n("F_ENV", 0.5).env(2, 0.001, 0.2, 0.0, 0.2).env(1, 0.002, 0.3, 0.0, 0.2).reverb(0.4, 0.2);
-        b.arp("Up-Down", "1/16", "1 Oct", 0.4).e("DR_KIT", "808 Kit").drums("Trap", 140.0, 0.0);
+        b.arp("Up-Down", "1/16", "1 Oct", 0.4).e("DR_KIT", "Trap Kit").drums("Trap", 140.0, 0.0);
     });
     p!("Beat Disco Stabs", |b| {
         b.saw('A', 5.0, 0.2, 0.55).filt("LP 24", 4000.0, 0.1).env(1, 0.003, 0.25, 0.0, 0.2).chorus(0.4).reverb(0.3, 0.2);
-        b.prog("I-VI-IV-V", "1/2 bar").e("CH_EXT", "7th").e("DR_KIT", "707 Kit").drums("Disco", 118.0, 0.0);
+        b.prog("I-VI-IV-V", "1/2 bar").e("CH_EXT", "7th").e("DR_KIT", "606 Kit").drums("Disco", 118.0, 0.0);
     });
     p!("Beat Funk Groove", |b| {
         b.osc('A', "E-Piano", 0.5, 1.0, 0.0, 0.7).filt("LP 12", 4500.0, 0.1).env(1, 0.002, 0.5, 0.0, 0.2);
-        b.prog("I-IV-II-V", "1 bar").e("CH_EXT", "Dom 7").e("DR_KIT", "707 Kit").drums("Funk", 104.0, 0.2).n("HUM_TIME", 0.3).n("HUM_VEL", 0.5);
+        b.prog("I-IV-II-V", "1 bar").e("CH_EXT", "Dom 7").e("DR_KIT", "Linn Kit").drums("Funk", 104.0, 0.2).n("HUM_TIME", 0.3).n("HUM_VEL", 0.5);
     });
     p!("Beat Lo-Fi Chill", |b| {
         b.osc('A', "E-Piano", 0.35, 1.0, 0.0, 0.7).filt("LP 12", 2200.0, 0.05).env(1, 0.005, 1.5, 0.0, 0.5).chorus(0.5).reverb(0.5, 0.4);
-        b.prog("I-VI-IV-V", "1 bar").e("CH_EXT", "9th").e("DR_KIT", "707 Kit").drums("Lo-Fi", 78.0, 0.4).n("HUM_TIME", 0.6).n("HUM_VEL", 0.5).n("HUM_GATE", 0.3);
+        b.prog("I-VI-IV-V", "1 bar").e("CH_EXT", "9th").e("DR_KIT", "DMX Kit").drums("Lo-Fi", 78.0, 0.4).n("HUM_TIME", 0.6).n("HUM_VEL", 0.5).n("HUM_GATE", 0.3);
     });
     p!("Beat 80s Pop Anthem", |b| {
         b.saw('A', 5.0, 0.3, 0.55).osc('B', "Pulse Width", 0.5, 3.0, 0.2, 0.4).filt("LP 24", 5000.0, 0.1).env(1, 0.02, 1.0, 1.0, 0.5).chorus(0.5).reverb(0.5, 0.25);
-        b.prog("I-V-VI-IV", "1 bar").e("DR_KIT", "707 Kit").drums("80s Pop", 112.0, 0.0);
+        b.prog("I-V-VI-IV", "1 bar").e("DR_KIT", "Linn Kit").drums("80s Pop", 112.0, 0.0);
     });
     p!("Beat Drum & Bass Arp", |b| {
         b.saw('A', 3.0, 0.2, 0.6).filt("LP 24", 1800.0, 0.2).n("F_ENV", 0.5).env(2, 0.001, 0.15, 0.0, 0.1).env(1, 0.002, 0.2, 0.0, 0.1).delay("1/8.", 0.3, 0.2);
@@ -54,6 +54,6 @@ pub fn add(out: &mut Vec<Preset>) {
     });
     p!("Beat Rock Power", |b| {
         b.saw('A', 3.0, 0.15, 0.7).filt("LP 24", 2400.0, 0.2).env(1, 0.004, 1.0, 1.0, 0.15).dist("Hard", 0.35, 0.6);
-        b.chord("One-Key", "Power").e("DR_KIT", "909 Kit").drums("Rock", 120.0, 0.0);
+        b.chord("One-Key", "Power").e("DR_KIT", "Acoustic Kit").drums("Rock", 120.0, 0.0);
     });
 }

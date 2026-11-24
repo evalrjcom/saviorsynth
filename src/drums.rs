@@ -46,10 +46,10 @@ const TAU: f32 = std::f32::consts::TAU;
 /// Kit character tables. All three kits are synthesized from scratch (no samples): they model the
 /// *character* of the classic analog (808), digital/PCM (707) and hybrid (909) drum machines.
 #[cfg(test)]
-pub const KIT_NAMES: [&str; 3] = ["707 Kit", "808 Kit", "909 Kit"];
+pub const KIT_NAMES: [&str; 9] = ["707 Kit", "808 Kit", "909 Kit", "606 Kit", "CR-78 Kit", "Linn Kit", "DMX Kit", "Acoustic Kit", "Trap Kit"];
 struct Kit {
     // kick: pitch-swept sine, shaped click, drive
-    k_f: f32, k_drop: f32, k_rate: f32, k_dec: f32, k_decr: f32, k_click: f32, k_cfc: f32, k_drive: f32,
+    k_f: f32, k_drop: f32, k_rate: f32, k_dec: f32, k_decr: f32, k_click: f32, k_cfc: f32, k_drive: f32, vary: f32,
     // snare: two swept body tones + filtered noise with a two-stage decay
     s_f1: f32, s_f2: f32, s_pd: f32, s_pr: f32, s_tone: f32, s_mix: f32, s_noise: f32, s_nhp: f32, s_nlp: f32, s_ndec: f32, s_ndecr: f32,
     // clap: band-passed noise, several short bursts, then a room-like tail
@@ -61,36 +61,30 @@ struct Kit {
     // rim
     r_f1: f32, r_f2: f32, r_dec: f32, r_decr: f32, r_noise: f32, r_fc: f32,
     // perc (cowbell / ride bell)
-    p_f1: f32, p_f2: f32, p_fc: f32, p_d1: f32, p_d2: f32, p_dr: f32, p_gain: f32,
+    p_f1: f32, p_f2: f32, p_fc: f32, p_d1: f32, p_d2: f32, p_dr: f32, p_gain: f32, p_noise: f32,
     bits: u32, hold: u32, // lo-fi: bit depth (0 = off) and sample-hold factor (1 = off)
 }
 /// Classic metallic-hat oscillator frequencies (Hz); each kit scales them.
 const HAT_F: [f32; 6] = [205.3, 304.4, 369.6, 522.7, 540.0, 800.0];
-static KITS: [Kit; 3] = [
+static KITS: [Kit; 9] = [
     // 707: digital, short, bright and slightly grainy (8-bit, sample-held)
-    Kit { k_f: 58.0, k_drop: 2.8, k_rate: 40.0, k_dec: 0.05, k_decr: 0.16, k_click: 0.5, k_cfc: 3500.0, k_drive: 1.6,
-          s_f1: 200.0, s_f2: 360.0, s_pd: 0.5, s_pr: 60.0, s_tone: 0.05, s_mix: 0.5, s_noise: 1.0, s_nhp: 1800.0, s_nlp: 7000.0, s_ndec: 0.06, s_ndecr: 0.18,
-          c_gap: 0.012, c_n: 3, c_rate: 280.0, c_tail: 0.05, c_tailr: 0.2, c_fc: 1300.0, c_q: 0.7, c_gain: 2.0,
-          h_mul: 1.2, h_sq: 0.6, h_noise: 0.5, h_bpf: 5500.0, h_hpf: 6500.0, h_cd: 0.025, h_cdr: 0.06, h_od: 0.16, h_odr: 0.4, h_gain: 3.2,
-          t_f: 150.0, t_drop: 0.5, t_rate: 20.0, t_dec: 0.06, t_decr: 0.2, t_click: 0.1,
-          r_f1: 1500.0, r_f2: 440.0, r_dec: 0.005, r_decr: 0.02, r_noise: 0.15, r_fc: 2200.0,
-          p_f1: 560.0, p_f2: 830.0, p_fc: 2600.0, p_d1: 0.02, p_d2: 0.05, p_dr: 0.15, p_gain: 1.6, bits: 8, hold: 2 },
+    Kit { k_f: 58.0, k_drop: 2.8, k_rate: 40.0, k_dec: 0.05, k_decr: 0.16, k_click: 0.5, k_cfc: 3500.0, k_drive: 1.6, vary: 0.0, s_f1: 200.0, s_f2: 360.0, s_pd: 0.5, s_pr: 60.0, s_tone: 0.05, s_mix: 0.5, s_noise: 1.0, s_nhp: 1800.0, s_nlp: 7000.0, s_ndec: 0.06, s_ndecr: 0.18, c_gap: 0.012, c_n: 3, c_rate: 280.0, c_tail: 0.05, c_tailr: 0.2, c_fc: 1300.0, c_q: 0.7, c_gain: 2.0, h_mul: 1.2, h_sq: 0.6, h_noise: 0.5, h_bpf: 5500.0, h_hpf: 6500.0, h_cd: 0.025, h_cdr: 0.06, h_od: 0.16, h_odr: 0.4, h_gain: 3.2, t_f: 150.0, t_drop: 0.5, t_rate: 20.0, t_dec: 0.06, t_decr: 0.2, t_click: 0.1, r_f1: 1500.0, r_f2: 440.0, r_dec: 0.005, r_decr: 0.02, r_noise: 0.15, r_fc: 2200.0, p_f1: 560.0, p_f2: 830.0, p_fc: 2600.0, p_d1: 0.02, p_d2: 0.05, p_dr: 0.15, p_gain: 1.6, p_noise: 0.0, bits: 8, hold: 2 },
     // 808: analog, long boomy kick, tonal snare, metallic square hats, cowbell
-    Kit { k_f: 46.0, k_drop: 2.2, k_rate: 22.0, k_dec: 0.10, k_decr: 0.70, k_click: 0.15, k_cfc: 1800.0, k_drive: 1.2,
-          s_f1: 180.0, s_f2: 330.0, s_pd: 0.15, s_pr: 80.0, s_tone: 0.09, s_mix: 0.8, s_noise: 0.9, s_nhp: 1500.0, s_nlp: 6500.0, s_ndec: 0.08, s_ndecr: 0.3,
-          c_gap: 0.010, c_n: 4, c_rate: 200.0, c_tail: 0.09, c_tailr: 0.35, c_fc: 1100.0, c_q: 0.6, c_gain: 2.0,
-          h_mul: 1.0, h_sq: 0.8, h_noise: 0.0, h_bpf: 3400.0, h_hpf: 7000.0, h_cd: 0.035, h_cdr: 0.08, h_od: 0.25, h_odr: 0.65, h_gain: 4.8,
-          t_f: 100.0, t_drop: 0.5, t_rate: 14.0, t_dec: 0.10, t_decr: 0.35, t_click: 0.0,
-          r_f1: 1700.0, r_f2: 480.0, r_dec: 0.006, r_decr: 0.02, r_noise: 0.1, r_fc: 2000.0,
-          p_f1: 540.0, p_f2: 800.0, p_fc: 2600.0, p_d1: 0.03, p_d2: 0.08, p_dr: 0.2, p_gain: 1.6, bits: 0, hold: 1 },
-    // 909: punchy driven kick with a click, snappy noisy snare, crisp hats, bright ride-bell perc
-    Kit { k_f: 55.0, k_drop: 4.0, k_rate: 40.0, k_dec: 0.06, k_decr: 0.22, k_click: 0.7, k_cfc: 3000.0, k_drive: 2.0,
-          s_f1: 190.0, s_f2: 340.0, s_pd: 1.0, s_pr: 90.0, s_tone: 0.06, s_mix: 0.55, s_noise: 1.0, s_nhp: 2000.0, s_nlp: 8000.0, s_ndec: 0.06, s_ndecr: 0.25,
-          c_gap: 0.008, c_n: 4, c_rate: 300.0, c_tail: 0.06, c_tailr: 0.25, c_fc: 1300.0, c_q: 0.5, c_gain: 2.2,
-          h_mul: 1.35, h_sq: 0.6, h_noise: 0.6, h_bpf: 6000.0, h_hpf: 7200.0, h_cd: 0.022, h_cdr: 0.06, h_od: 0.2, h_odr: 0.5, h_gain: 3.2,
-          t_f: 130.0, t_drop: 0.9, t_rate: 25.0, t_dec: 0.08, t_decr: 0.22, t_click: 0.3,
-          r_f1: 1900.0, r_f2: 520.0, r_dec: 0.007, r_decr: 0.02, r_noise: 0.3, r_fc: 2600.0,
-          p_f1: 760.0, p_f2: 1230.0, p_fc: 4200.0, p_d1: 0.08, p_d2: 0.2, p_dr: 0.4, p_gain: 1.6, bits: 0, hold: 1 },
+    Kit { k_f: 46.0, k_drop: 2.2, k_rate: 22.0, k_dec: 0.10, k_decr: 0.70, k_click: 0.15, k_cfc: 1800.0, k_drive: 1.2, vary: 0.0, s_f1: 180.0, s_f2: 330.0, s_pd: 0.15, s_pr: 80.0, s_tone: 0.09, s_mix: 0.8, s_noise: 0.9, s_nhp: 1500.0, s_nlp: 6500.0, s_ndec: 0.08, s_ndecr: 0.3, c_gap: 0.010, c_n: 4, c_rate: 200.0, c_tail: 0.09, c_tailr: 0.35, c_fc: 1100.0, c_q: 0.6, c_gain: 2.0, h_mul: 1.0, h_sq: 0.8, h_noise: 0.0, h_bpf: 3400.0, h_hpf: 7000.0, h_cd: 0.035, h_cdr: 0.08, h_od: 0.25, h_odr: 0.65, h_gain: 4.8, t_f: 100.0, t_drop: 0.5, t_rate: 14.0, t_dec: 0.10, t_decr: 0.35, t_click: 0.0, r_f1: 1700.0, r_f2: 480.0, r_dec: 0.006, r_decr: 0.02, r_noise: 0.1, r_fc: 2000.0, p_f1: 540.0, p_f2: 800.0, p_fc: 2600.0, p_d1: 0.03, p_d2: 0.08, p_dr: 0.2, p_gain: 1.6, p_noise: 0.0, bits: 0, hold: 1 },
+    // 909: punchy driven kick with a click, snappy noisy snare, crisp hats, ride-bell perc
+    Kit { k_f: 55.0, k_drop: 4.0, k_rate: 40.0, k_dec: 0.06, k_decr: 0.22, k_click: 0.7, k_cfc: 3000.0, k_drive: 2.0, vary: 0.0, s_f1: 190.0, s_f2: 340.0, s_pd: 1.0, s_pr: 90.0, s_tone: 0.06, s_mix: 0.55, s_noise: 1.0, s_nhp: 2000.0, s_nlp: 8000.0, s_ndec: 0.06, s_ndecr: 0.25, c_gap: 0.008, c_n: 4, c_rate: 300.0, c_tail: 0.06, c_tailr: 0.25, c_fc: 1300.0, c_q: 0.5, c_gain: 2.2, h_mul: 1.35, h_sq: 0.6, h_noise: 0.6, h_bpf: 6000.0, h_hpf: 7200.0, h_cd: 0.022, h_cdr: 0.06, h_od: 0.2, h_odr: 0.5, h_gain: 3.2, t_f: 130.0, t_drop: 0.9, t_rate: 25.0, t_dec: 0.08, t_decr: 0.22, t_click: 0.3, r_f1: 1900.0, r_f2: 520.0, r_dec: 0.007, r_decr: 0.02, r_noise: 0.3, r_fc: 2600.0, p_f1: 760.0, p_f2: 1230.0, p_fc: 4200.0, p_d1: 0.08, p_d2: 0.2, p_dr: 0.4, p_gain: 1.6, p_noise: 0.0, bits: 0, hold: 1 },
+    // 606: small analog box - thin tight kick, crisp short hats, light snare
+    Kit { k_f: 62.0, k_drop: 1.8, k_rate: 30.0, k_dec: 0.04, k_decr: 0.16, k_click: 0.2, k_cfc: 2500.0, k_drive: 1.1, vary: 0.0, s_f1: 200.0, s_f2: 320.0, s_pd: 0.3, s_pr: 70.0, s_tone: 0.05, s_mix: 0.45, s_noise: 0.9, s_nhp: 2200.0, s_nlp: 9000.0, s_ndec: 0.05, s_ndecr: 0.15, c_gap: 0.011, c_n: 3, c_rate: 200.0, c_tail: 0.04, c_tailr: 0.15, c_fc: 1500.0, c_q: 0.6, c_gain: 2.0, h_mul: 1.15, h_sq: 0.8, h_noise: 0.0, h_bpf: 4200.0, h_hpf: 8500.0, h_cd: 0.02, h_cdr: 0.05, h_od: 0.12, h_odr: 0.35, h_gain: 6.4, t_f: 120.0, t_drop: 0.4, t_rate: 16.0, t_dec: 0.08, t_decr: 0.25, t_click: 0.0, r_f1: 1700.0, r_f2: 480.0, r_dec: 0.006, r_decr: 0.02, r_noise: 0.1, r_fc: 2000.0, p_f1: 600.0, p_f2: 900.0, p_fc: 3000.0, p_d1: 0.02, p_d2: 0.06, p_dr: 0.15, p_gain: 1.6, p_noise: 0.0, bits: 0, hold: 1 },
+    // CR-78: early rhythm box - soft round kick, filtered snare, ticky hats, claves and guiro-style perc
+    Kit { k_f: 72.0, k_drop: 1.2, k_rate: 30.0, k_dec: 0.05, k_decr: 0.14, k_click: 0.05, k_cfc: 1500.0, k_drive: 1.0, vary: 0.0, s_f1: 330.0, s_f2: 220.0, s_pd: 0.0, s_pr: 80.0, s_tone: 0.08, s_mix: 0.6, s_noise: 0.6, s_nhp: 1200.0, s_nlp: 5000.0, s_ndec: 0.06, s_ndecr: 0.18, c_gap: 0.014, c_n: 2, c_rate: 200.0, c_tail: 0.05, c_tailr: 0.15, c_fc: 900.0, c_q: 0.8, c_gain: 1.8, h_mul: 0.9, h_sq: 0.5, h_noise: 0.6, h_bpf: 7000.0, h_hpf: 5000.0, h_cd: 0.03, h_cdr: 0.05, h_od: 0.12, h_odr: 0.3, h_gain: 2.4, t_f: 140.0, t_drop: 0.1, t_rate: 20.0, t_dec: 0.08, t_decr: 0.25, t_click: 0.0, r_f1: 2400.0, r_f2: 1200.0, r_dec: 0.015, r_decr: 0.03, r_noise: 0.0, r_fc: 2400.0, p_f1: 800.0, p_f2: 1200.0, p_fc: 3200.0, p_d1: 0.03, p_d2: 0.05, p_dr: 0.12, p_gain: 1.6, p_noise: 0.0, bits: 0, hold: 1 },
+    // Linn: 12-bit digital, big gated-style snare and claps, tuned toms, punchy 80s pop kick
+    Kit { k_f: 52.0, k_drop: 3.2, k_rate: 35.0, k_dec: 0.07, k_decr: 0.22, k_click: 0.45, k_cfc: 3200.0, k_drive: 1.5, vary: 0.0, s_f1: 195.0, s_f2: 340.0, s_pd: 0.6, s_pr: 70.0, s_tone: 0.07, s_mix: 0.6, s_noise: 1.0, s_nhp: 1500.0, s_nlp: 9000.0, s_ndec: 0.08, s_ndecr: 0.25, c_gap: 0.009, c_n: 4, c_rate: 300.0, c_tail: 0.06, c_tailr: 0.25, c_fc: 1200.0, c_q: 0.5, c_gain: 2.2, h_mul: 1.25, h_sq: 0.6, h_noise: 0.6, h_bpf: 5800.0, h_hpf: 7500.0, h_cd: 0.03, h_cdr: 0.07, h_od: 0.18, h_odr: 0.5, h_gain: 3.4, t_f: 120.0, t_drop: 1.1, t_rate: 22.0, t_dec: 0.1, t_decr: 0.3, t_click: 0.3, r_f1: 1900.0, r_f2: 520.0, r_dec: 0.007, r_decr: 0.02, r_noise: 0.3, r_fc: 2600.0, p_f1: 600.0, p_f2: 900.0, p_fc: 2800.0, p_d1: 0.03, p_d2: 0.08, p_dr: 0.2, p_gain: 1.6, p_noise: 0.0, bits: 12, hold: 1 },
+    // DMX: 12-bit digital hip-hop kit - tight kick, bright snare, shaker-style perc
+    Kit { k_f: 50.0, k_drop: 2.6, k_rate: 28.0, k_dec: 0.08, k_decr: 0.3, k_click: 0.35, k_cfc: 2800.0, k_drive: 1.7, vary: 0.0, s_f1: 175.0, s_f2: 300.0, s_pd: 0.4, s_pr: 70.0, s_tone: 0.06, s_mix: 0.55, s_noise: 1.0, s_nhp: 1400.0, s_nlp: 10000.0, s_ndec: 0.07, s_ndecr: 0.2, c_gap: 0.01, c_n: 3, c_rate: 300.0, c_tail: 0.06, c_tailr: 0.25, c_fc: 1300.0, c_q: 0.5, c_gain: 2.2, h_mul: 1.1, h_sq: 0.6, h_noise: 0.7, h_bpf: 6200.0, h_hpf: 7800.0, h_cd: 0.025, h_cdr: 0.06, h_od: 0.18, h_odr: 0.45, h_gain: 3.4, t_f: 90.0, t_drop: 0.8, t_rate: 18.0, t_dec: 0.1, t_decr: 0.35, t_click: 0.25, r_f1: 1900.0, r_f2: 520.0, r_dec: 0.007, r_decr: 0.02, r_noise: 0.3, r_fc: 2600.0, p_f1: 560.0, p_f2: 830.0, p_fc: 6500.0, p_d1: 0.04, p_d2: 0.07, p_dr: 0.15, p_gain: 2.0, p_noise: 0.8, bits: 12, hold: 1 },
+    // Acoustic: live kit - beater kick, rattly snare, noisy hats, side-stick, tambourine; tiny per-hit variation
+    Kit { k_f: 62.0, k_drop: 1.8, k_rate: 60.0, k_dec: 0.05, k_decr: 0.15, k_click: 0.8, k_cfc: 4500.0, k_drive: 1.0, vary: 0.015, s_f1: 220.0, s_f2: 330.0, s_pd: 0.1, s_pr: 60.0, s_tone: 0.07, s_mix: 0.45, s_noise: 1.0, s_nhp: 900.0, s_nlp: 9000.0, s_ndec: 0.12, s_ndecr: 0.25, c_gap: 0.014, c_n: 5, c_rate: 160.0, c_tail: 0.08, c_tailr: 0.2, c_fc: 1500.0, c_q: 0.7, c_gain: 2.0, h_mul: 1.0, h_sq: 0.15, h_noise: 1.0, h_bpf: 8000.0, h_hpf: 6000.0, h_cd: 0.05, h_cdr: 0.1, h_od: 0.35, h_odr: 0.8, h_gain: 2.0, t_f: 110.0, t_drop: 0.25, t_rate: 12.0, t_dec: 0.15, t_decr: 0.3, t_click: 0.4, r_f1: 1100.0, r_f2: 420.0, r_dec: 0.012, r_decr: 0.02, r_noise: 0.5, r_fc: 1800.0, p_f1: 540.0, p_f2: 800.0, p_fc: 7500.0, p_d1: 0.04, p_d2: 0.12, p_dr: 0.2, p_gain: 2.0, p_noise: 1.0, bits: 0, hold: 1 },
+    // Trap: sub-heavy distorted kick, tight snare, layered clap, ultra-crisp fast hats
+    Kit { k_f: 42.0, k_drop: 1.5, k_rate: 12.0, k_dec: 0.15, k_decr: 1.2, k_click: 0.1, k_cfc: 1800.0, k_drive: 2.2, vary: 0.0, s_f1: 200.0, s_f2: 340.0, s_pd: 0.5, s_pr: 80.0, s_tone: 0.05, s_mix: 0.5, s_noise: 1.0, s_nhp: 2200.0, s_nlp: 9000.0, s_ndec: 0.05, s_ndecr: 0.15, c_gap: 0.009, c_n: 4, c_rate: 200.0, c_tail: 0.08, c_tailr: 0.2, c_fc: 1300.0, c_q: 0.6, c_gain: 2.4, h_mul: 1.3, h_sq: 0.7, h_noise: 0.2, h_bpf: 6500.0, h_hpf: 9000.0, h_cd: 0.015, h_cdr: 0.04, h_od: 0.12, h_odr: 0.35, h_gain: 6.0, t_f: 90.0, t_drop: 1.0, t_rate: 10.0, t_dec: 0.2, t_decr: 0.6, t_click: 0.0, r_f1: 1800.0, r_f2: 520.0, r_dec: 0.005, r_decr: 0.015, r_noise: 0.1, r_fc: 2000.0, p_f1: 540.0, p_f2: 800.0, p_fc: 3000.0, p_d1: 0.02, p_d2: 0.06, p_dr: 0.15, p_gain: 2.0, p_noise: 0.0, bits: 0, hold: 1 },
 ];
 
 /// State-variable filter (TPT form): returns (low, band, high). `g = tan(pi*fc/sr)`, `k = 1/Q`.
@@ -115,12 +109,13 @@ impl Svf {
 #[inline] fn sq(ph: f32, dt: f32) -> f32 { (if ph < 0.5 { 1.0 } else { -1.0 }) + blep(ph, dt) - blep((ph + 0.5).fract(), dt) }
 
 #[derive(Clone, Copy)]
-struct Voice { on: bool, t: f32, vel: f32, ph: f32, ph2: f32, hph: [f32; 6], f1: Svf, f2: Svf, choke: f32, noise: u32, kit: u8, held: f32, hc: u32 }
+struct Voice { on: bool, t: f32, vel: f32, ph: f32, ph2: f32, hph: [f32; 6], f1: Svf, f2: Svf, choke: f32, noise: u32, kit: u8, held: f32, hc: u32, rv: f32 }
 impl Voice {
-    const fn new(seed: u32) -> Voice { Voice { on: false, t: 0.0, vel: 0.0, ph: 0.0, ph2: 0.0, hph: [0.0; 6], f1: Svf::new(), f2: Svf::new(), choke: 1.0, noise: seed, kit: 1, held: 0.0, hc: 0 } }
+    const fn new(seed: u32) -> Voice { Voice { on: false, t: 0.0, vel: 0.0, ph: 0.0, ph2: 0.0, hph: [0.0; 6], f1: Svf::new(), f2: Svf::new(), choke: 1.0, noise: seed, kit: 1, held: 0.0, hc: 0, rv: 0.0 } }
     fn trigger(&mut self, vel: f32, kit: u8) {
         self.on = true; self.t = 0.0; self.vel = vel; self.ph = 0.0; self.ph2 = 0.0; self.hph = [0.0; 6];
-        self.f1 = Svf::new(); self.f2 = Svf::new(); self.choke = 1.0; self.kit = kit.min(2); self.held = 0.0; self.hc = 0;
+        self.f1 = Svf::new(); self.f2 = Svf::new(); self.choke = 1.0; self.kit = kit.min(KITS.len() as u8 - 1); self.held = 0.0; self.hc = 0;
+        self.rv = xorshift(&mut self.noise); // -1..1: per-hit variation (used by the Acoustic kit only)
     }
 
     /// One sample of voice `k` (see NAMES). `tune` in -1..1, `dec` in 0..1. The kit is fixed per hit at trigger time.
@@ -130,7 +125,7 @@ impl Voice {
         let dt = 1.0 / sr;
         let t = self.t;
         let v = self.vel.clamp(0.0, 1.5);
-        let ratio = (tune * 0.7).exp2();
+        let ratio = (tune * 0.7).exp2() * (1.0 + kp.vary * self.rv);
         let x = match k {
             0 => { // kick: pitch-swept sine (1 ms attack ramp avoids pops) + band-passed noise click; harder hits click and drive more
                 let f = kp.k_f * ratio * (1.0 + kp.k_drop * (-t * kp.k_rate).exp());
@@ -189,7 +184,8 @@ impl Voice {
             }
             _ => { // perc: two band-limited squares through a band-pass: cowbell (707/808) or ride bell (909)
                 self.ph = (self.ph + kp.p_f1 * ratio * dt).fract(); self.ph2 = (self.ph2 + kp.p_f2 * ratio * dt).fract();
-                let raw = (sq(self.ph, kp.p_f1 * ratio * dt) + sq(self.ph2, kp.p_f2 * ratio * dt)) * 0.5;
+                let raw = (sq(self.ph, kp.p_f1 * ratio * dt) + sq(self.ph2, kp.p_f2 * ratio * dt)) * 0.5 * (1.0 - kp.p_noise)
+                    + xorshift(&mut self.noise) * kp.p_noise * 1.2; // p_noise > 0: shaker / tambourine instead of metal
                 let (_, bp, _) = self.f1.run(raw, fg(kp.p_fc, sr), 0.8);
                 bp * kp.p_gain * 0.5 * ((-t / kp.p_d1).exp() * 0.6 + (-t / (kp.p_d2 + kp.p_dr * dec)).exp() * 0.4)
             }
@@ -205,7 +201,51 @@ impl Voice {
     }
 }
 
+/// Small stereo room on the drum bus (Schroeder: 4 damped combs + 2 all-passes per side). Buffers are
+/// allocated once in `new()`; `process` never allocates.
+struct Room { comb: Vec<Vec<f32>>, cidx: [usize; 8], cst: [f32; 8], ap: Vec<Vec<f32>>, aidx: [usize; 4] }
+const COMB_LEN: [f32; 8] = [1116.0, 1188.0, 1277.0, 1356.0, 1139.0, 1211.0, 1300.0, 1379.0];
+const AP_LEN: [f32; 4] = [556.0, 441.0, 579.0, 464.0];
+impl Room {
+    fn new() -> Room {
+        // capacity covers sample rates up to ~132 kHz
+        Room { comb: COMB_LEN.iter().map(|&l| vec![0.0; (l * 3.0) as usize]).collect(), cidx: [0; 8], cst: [0.0; 8],
+               ap: AP_LEN.iter().map(|&l| vec![0.0; (l * 3.0) as usize]).collect(), aidx: [0; 4] }
+    }
+    #[inline] fn process(&mut self, x: f32, scale: f32) -> (f32, f32) {
+        let mut out = [0.0f32; 2];
+        for side in 0..2 {
+            let mut acc = 0.0;
+            for c in 0..4 {
+                let i = side * 4 + c;
+                let len = ((COMB_LEN[i] * scale) as usize).clamp(8, self.comb[i].len());
+                if self.cidx[i] >= len { self.cidx[i] = 0; }
+                let y = self.comb[i][self.cidx[i]];
+                self.cst[i] = y * 0.65 + self.cst[i] * 0.35; // damping (darker tail)
+                if self.cst[i].abs() < 1e-20 { self.cst[i] = 0.0; }
+                self.comb[i][self.cidx[i]] = x + self.cst[i] * 0.80;
+                self.cidx[i] += 1;
+                acc += y;
+            }
+            let mut v = acc * 0.25;
+            for a in 0..2 {
+                let i = side * 2 + a;
+                let len = ((AP_LEN[i] * scale) as usize).clamp(8, self.ap[i].len());
+                if self.aidx[i] >= len { self.aidx[i] = 0; }
+                let b = self.ap[i][self.aidx[i]];
+                let o = -v + b;
+                self.ap[i][self.aidx[i]] = v + b * 0.5;
+                self.aidx[i] += 1;
+                v = o;
+            }
+            out[side] = v;
+        }
+        (out[0], out[1])
+    }
+}
+
 pub struct Drums {
+    room: Room,
     v: [Voice; TRACKS],
     step: u32, beat: f64, start: f64, running: bool, rnd: u32,
     pend: [(i32, u8, f32); 48], npend: usize,
@@ -217,14 +257,15 @@ pub struct Drums {
 impl Drums {
     pub fn new() -> Drums {
         Drums {
+            room: Room::new(),
             v: std::array::from_fn(|i| Voice::new(0x9E3779B9u32.wrapping_mul(i as u32 + 7))),
             step: 0, beat: 0.0, start: 0.0, running: false, rnd: 0x1234567, pend: [(0, 0, 0.0); 48], npend: 0,
             kit: 1, hits: [0; TRACKS], cur_step: -1,
         }
     }
 
-    /// Select the kit (0 = 707, 1 = 808, 2 = 909) used for hits triggered from now on.
-    pub fn set_kit(&mut self, k: usize) { self.kit = k.min(2) as u8; }
+    /// Select the kit (index into KIT_NAMES) used for hits triggered from now on.
+    pub fn set_kit(&mut self, k: usize) { self.kit = k.min(KITS.len() - 1) as u8; }
 
     pub fn trigger(&mut self, track: usize, vel: f32) {
         let track = track.min(TRACKS - 1);
@@ -294,6 +335,15 @@ impl Drums {
             ol[n] += (ml[n] * 0.9).tanh() * (vol / 0.9);
             or[n] += (mr[n] * 0.9).tanh() * (vol / 0.9);
         }
+        // room ambience (DR_ROOM, squared for a finer low end); fed from the dry bus, tail rings on after the hits stop
+        let wet = s[DR_ROOM] * s[DR_ROOM];
+        if wet > 1e-4 {
+            let scale = sr.max(8000.0) / 44100.0;
+            for n in 0..BLOCK {
+                let (rl, rr) = self.room.process((ml[n] + mr[n]) * 0.5 * 0.35, scale);
+                ol[n] += rl * wet * vol * 1.6; or[n] += rr * wet * vol * 1.6;
+            }
+        }
     }
 }
 
@@ -341,7 +391,7 @@ mod tests {
 
     #[test]
     fn every_voice_sounds_and_decays() {
-        for (kit, k) in (0..3).flat_map(|kit| (0..TRACKS).map(move |k| (kit, k))) {
+        for (kit, k) in (0..KITS.len()).flat_map(|kit| (0..TRACKS).map(move |k| (kit, k))) {
             let mut d = Drums::new();
             d.set_kit(kit);
             d.trigger(k, 1.0);
@@ -398,7 +448,7 @@ mod tests {
     fn dump_kits() {
         let Ok(dir) = std::env::var("DRUM_DUMP") else { return };
         std::fs::create_dir_all(&dir).unwrap();
-        for kit in 0..3 {
+        for kit in 0..KITS.len() {
             for k in 0..TRACKS {
                 let mut d = Drums::new(); d.set_kit(kit); d.trigger(k, 1.0);
                 let mut s = default_patch(); s[DR_KIT] = kit as f32;
@@ -415,7 +465,7 @@ mod tests {
                 w.extend_from_slice(&48000u32.to_le_bytes()); w.extend_from_slice(&96000u32.to_le_bytes()); w.extend_from_slice(&2u16.to_le_bytes()); w.extend_from_slice(&16u16.to_le_bytes());
                 w.extend_from_slice(b"data"); w.extend_from_slice(&n.to_le_bytes());
                 for v in pcm { w.extend_from_slice(&v.to_le_bytes()); }
-                std::fs::write(format!("{}/{}_{}.wav", dir, KIT_NAMES[kit].replace(' ', ""), NAMES[k].replace(' ', "")), w).unwrap();
+                std::fs::write(format!("{}/{}_{}.wav", dir, KIT_NAMES[kit].replace(" Kit", ""), NAMES[k].replace(' ', "")), w).unwrap();
             }
         }
     }

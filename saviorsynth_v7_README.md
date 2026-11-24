@@ -1,4 +1,4 @@
-# saviorsynth_v6 — wavetable synthesizer (Rust + FLTK)
+# saviorsynth_v7 — wavetable synthesizer (Rust + FLTK)
 
 A standalone wavetable synth with one-key chords, progressions and an arpeggiator for **Windows (x64)** and **Linux (x86_64)**.
 Single self-contained executable, no runtime dependencies besides the system audio/GUI libraries
@@ -12,8 +12,8 @@ Single self-contained executable, no runtime dependencies besides the system aud
 
 | Platform | Run |
 |---|---|
-| Windows 10/11 x64 | double-click `saviorsynth_v6_windows_x64.exe` |
-| Linux   | `chmod +x saviorsynth_v6_linux_x86_64 && ./saviorsynth_v6_linux_x86_64` (needs the usual desktop libraries: X11, Xinerama/Xcursor/Xfixes, pango, cairo, ALSA — present on any desktop distro; binary needs glibc 2.38+ = Ubuntu 24.04, Debian 13, Fedora 39 or newer; on an older distro just run `./build_all.sh`) |
+| Windows 10/11 x64 | double-click `saviorsynth_v7_windows_x64.exe` |
+| Linux   | `chmod +x saviorsynth_v7_linux_x86_64 && ./saviorsynth_v7_linux_x86_64` (needs the usual desktop libraries: X11, Xinerama/Xcursor/Xfixes, pango, cairo, ALSA — present on any desktop distro; binary needs glibc 2.38+ = Ubuntu 24.04, Debian 13, Fedora 39 or newer; on an older distro just run `./build_all.sh`) |
 
 Play with the on-screen keyboard (mouse; drag to glissando; click height = velocity), the computer keyboard,
 or a MIDI keyboard (first MIDI port is auto-connected; choose another in the top-right menu).
@@ -100,8 +100,10 @@ cleanly on key release, so humanizing never causes hanging notes.
 Switch pages with the `SYNTH` / `DRUMS + LOOP` buttons at the top; the chord/arp panels and keyboard stay visible on both pages.
 
 **Drum machine** — 8 synthesized voices (Kick, Snare, Clap, Closed Hat, Open Hat, Tom, Rim, Perc; Perc = cowbell on 707/808, ride bell on 909), no samples.
-- **Kit** (Drum Sounds panel): **707**, **808** or **909**. All three are synthesized from scratch (no samples) and model the character of the originals: 808 = long boomy analog kick, tonal snare, metallic square-wave hats and cowbell; 909 = punchy driven kick with a click, snappy noisy snare, crisp hats, bright ride-bell perc; 707 = short, bright digital sounds with a grainy 8-bit / sample-held texture. The kit is chosen per hit, so switching while running never cuts a sound off.
-  Realism: hats and cowbell use six/two band-limited (PolyBLEP) square oscillators with circuit-style frequency ratios through band-pass + high-pass filters; snare and clap use shaped, band-limited noise with a fast crack and a slower tail; kicks/toms have pitch sweeps, a short attack ramp and a filtered click; hits respond to velocity in timbre as well as level (harder = more click, snap and brightness); the drum bus has gentle saturation for glue. Tune, Decay, levels and patterns apply to every kit.
+- **Kit** (Drum Sounds panel), 9 kits, all synthesized from scratch (no samples), modelled on the *character* of the originals:
+  **707** (short, bright, grainy 8-bit digital) · **808** (long boomy kick, tonal snare, metallic square-wave hats, cowbell) · **909** (punchy driven kick with click, snappy snare, crisp hats, ride-bell perc) · **606** (small thin analog box, short crisp hats) · **CR-78** (soft early rhythm box, ticky hats, claves/guiro-style perc) · **Linn** (12-bit digital: big snare/claps, tuned toms) · **DMX** (12-bit hip-hop kit, bright snare, shaker perc) · **Acoustic** (beater kick, rattly snare, noisy hats, side-stick, tambourine, tiny per-hit variation) · **Trap** (sub-heavy distorted kick, tight snare, layered clap, ultra-crisp hats).
+  The kit is chosen per hit, so switching while running never cuts a sound off. `Room` adds a small stereo room ambience to the drum bus. Tune, Decay, levels and patterns apply to every kit.
+  Realism: hats and cowbell use band-limited (PolyBLEP) square oscillators with circuit-style frequency ratios through band-pass + high-pass filters; snare and clap use shaped, band-limited noise with a fast crack and a slower tail; kicks/toms have pitch sweeps, a short attack ramp and a filtered click; hits respond to velocity in timbre as well as level (harder = more click, snap and brightness); the drum bus has gentle saturation for glue.
 - 16-step grid (one bar): click a step to toggle it, drag to paint. Clicking also auditions the sound. The playhead follows the transport.
 - `RUN` starts/stops (runs in sync with the audio clock at `BPM`). `Swing` delays every second 16th. `Level` = drum bus.
 - Per track: `M` mute, level slider; **Drum Sounds** panel: `Tune` and `Decay`. The closed hat chokes the open hat.
@@ -124,10 +126,10 @@ or *User* preset replaces the session (tempo, drum pattern); other categories ke
 ## Command line
 
 ```
-saviorsynth_v6 --list                         list presets
-saviorsynth_v6 --render "supersaw" out.wav    render one preset to a 16-bit WAV (--note 48 --seconds 4)
-saviorsynth_v6 --render all outdir/           render every preset
-saviorsynth_v6 --selftest                     headless regression test: NaN / silence / clipping / CPU for all presets
+saviorsynth_v7 --list                         list presets
+saviorsynth_v7 --render "supersaw" out.wav    render one preset to a 16-bit WAV (--note 48 --seconds 4)
+saviorsynth_v7 --render all outdir/           render every preset
+saviorsynth_v7 --selftest                     headless regression test: NaN / silence / clipping / CPU for all presets
 ```
 
 ## Building

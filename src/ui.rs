@@ -967,8 +967,8 @@ pub fn run(bank: Arc<WaveBank>, list: Vec<Preset>) {
         // sound shaping
         let sx = 782;
         panel(sx, y, 450, 338, "DRUM SOUNDS");
-        label(sx + 10, y + 26, 30, 14, "KIT", DIM, 9); choice(&c, sx + 40, y + 22, 120, 22, DR_KIT);
-        label(sx + 172, y + 26, 270, 14, "synthesized 707 / 808 / 909-style kits", DIM, 9);
+        label(sx + 10, y + 26, 30, 14, "KIT", DIM, 9); choice(&c, sx + 40, y + 22, 128, 22, DR_KIT);
+        label(sx + 176, y + 26, 40, 14, "ROOM", DIM, 9); ctl(&c, sx + 214, y + 22, 150, 22, DR_ROOM, "", Style::HSlider);
         label(sx + 80, gy, 100, 12, "TUNE", DIM, 8); label(sx + 262, gy, 100, 12, "DECAY", DIM, 8);
         for t in 0..crate::drums::TRACKS {
             let ry = gy + DG_HEAD + t as i32 * DG_RH + 4;
