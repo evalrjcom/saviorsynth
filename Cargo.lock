@@ -772,8 +772,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "saviorsynth_v5"
-version = "5.0.0"
+name = "saviorsynth_v6"
+version = "6.0.0"
 dependencies = [
  "cpal",
  "crossbeam-queue",
