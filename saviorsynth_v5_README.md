@@ -1,4 +1,4 @@
-# saviorsynth_v4 — wavetable synthesizer (Rust + FLTK)
+# saviorsynth_v5 — wavetable synthesizer (Rust + FLTK)
 
 A standalone wavetable synth with one-key chords, progressions and an arpeggiator for **Windows (x64)** and **Linux (x86_64)**.
 Single self-contained executable, no runtime dependencies besides the system audio/GUI libraries
@@ -12,8 +12,8 @@ Single self-contained executable, no runtime dependencies besides the system aud
 
 | Platform | Run |
 |---|---|
-| Windows 10/11 x64 | double-click `saviorsynth_v4_windows_x64.exe` |
-| Linux   | `chmod +x saviorsynth_v4_linux_x86_64 && ./saviorsynth_v4_linux_x86_64` (needs the usual desktop libraries: X11, Xinerama/Xcursor/Xfixes, pango, cairo, ALSA — present on any desktop distro; binary needs glibc 2.38+ = Ubuntu 24.04, Debian 13, Fedora 39 or newer; on an older distro just run `./build_all.sh`) |
+| Windows 10/11 x64 | double-click `saviorsynth_v5_windows_x64.exe` |
+| Linux   | `chmod +x saviorsynth_v5_linux_x86_64 && ./saviorsynth_v5_linux_x86_64` (needs the usual desktop libraries: X11, Xinerama/Xcursor/Xfixes, pango, cairo, ALSA — present on any desktop distro; binary needs glibc 2.38+ = Ubuntu 24.04, Debian 13, Fedora 39 or newer; on an older distro just run `./build_all.sh`) |
 
 Play with the on-screen keyboard (mouse; drag to glissando; click height = velocity), the computer keyboard,
 or a MIDI keyboard (first MIDI port is auto-connected; choose another in the top-right menu).
@@ -99,7 +99,8 @@ cleanly on key release, so humanizing never causes hanging notes.
 
 Switch pages with the `SYNTH` / `DRUMS + LOOP` buttons at the top; the chord/arp panels and keyboard stay visible on both pages.
 
-**Drum machine** — 8 synthesized voices (Kick, Snare, Clap, Closed Hat, Open Hat, Tom, Rim, Perc), no samples.
+**Drum machine** — 8 synthesized voices (Kick, Snare, Clap, Closed Hat, Open Hat, Tom, Rim, Perc; Perc = cowbell on 707/808, ride bell on 909), no samples.
+- **Kit** (Drum Sounds panel): **707**, **808** or **909**. All three are synthesized from scratch (no samples) and model the character of the originals: 808 = long boomy analog kick, tonal snare, metallic square-wave hats and cowbell; 909 = punchy driven kick with a click, snappy noisy snare, crisp hats, bright ride-bell perc; 707 = short, bright digital sounds with a grainy 8-bit / sample-held texture. The kit is chosen per hit, so switching while running never cuts a sound off. Tune, Decay, levels and patterns apply to every kit.
 - 16-step grid (one bar): click a step to toggle it, drag to paint. Clicking also auditions the sound. The playhead follows the transport.
 - `RUN` starts/stops (runs in sync with the audio clock at `BPM`). `Swing` delays every second 16th. `Level` = drum bus.
 - Per track: `M` mute, level slider; **Drum Sounds** panel: `Tune` and `Decay`. The closed hat chokes the open hat.
@@ -116,16 +117,16 @@ Switch pages with the `SYNTH` / `DRUMS + LOOP` buttons at the top; the chord/arp
 Maximum loop 32 s; buffers are allocated once at start (about 24 MB at 48 kHz), nothing is allocated on the audio thread.
 Loop seams are cross-faded (128 samples). `Loop Level` sets playback volume.
 
-**Beats presets (12)** — one-click demos: a sound + one-key progression or arpeggiator + a running drum pattern. Loading a *Beats*
+**Beats presets (12)** — one-click demos (each picks a fitting kit): a sound + one-key progression or arpeggiator + a running drum pattern. Loading a *Beats*
 or *User* preset replaces the session (tempo, drum pattern); other categories keep your BPM, drum, looper and humanize settings.
 
 ## Command line
 
 ```
-saviorsynth_v4 --list                         list presets
-saviorsynth_v4 --render "supersaw" out.wav    render one preset to a 16-bit WAV (--note 48 --seconds 4)
-saviorsynth_v4 --render all outdir/           render every preset
-saviorsynth_v4 --selftest                     headless regression test: NaN / silence / clipping / CPU for all presets
+saviorsynth_v5 --list                         list presets
+saviorsynth_v5 --render "supersaw" out.wav    render one preset to a 16-bit WAV (--note 48 --seconds 4)
+saviorsynth_v5 --render all outdir/           render every preset
+saviorsynth_v5 --selftest                     headless regression test: NaN / silence / clipping / CPU for all presets
 ```
 
 ## Building
@@ -145,7 +146,7 @@ Cross-compiling for Windows uses mingw-w64 (POSIX threads); FLTK is compiled fro
 | `src/audio.rs`, `src/midi.rs` | cpal output stream, midir input (optional feature `midi`) |
 | `src/ui.rs` | FLTK interface (custom knobs/sliders/views/keyboard) |
 | `src/perform.rs` | one-key chords, scale degrees, progressions, arpeggiator patterns + inversion cycling (real-time safe, unit-tested) |
-| `src/drums.rs` | drum synthesis (8 voices), 16-step sequencer, 16 patterns, swing/humanize (real-time safe, unit-tested) |
+| `src/drums.rs` | drum synthesis (8 voices x 3 kits), 16-step sequencer, 16 patterns, swing/humanize (real-time safe, unit-tested) |
 | `src/looper.rs` | audio looper: record / play / overdub / undo / clear, bar-synced length, seam fades |
 | `src/offline.rs` | WAV export + self-test |
 

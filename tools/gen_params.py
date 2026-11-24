@@ -21,6 +21,7 @@ ENUMS = {
  "PROG_LENS": ["2 bars","1 bar","1/2 bar","1 beat"],
  "ARP_PATS": ["Up","Down","Up-Down","Down-Up","Up+Down","Played","Random","Converge","Diverge","Thumb Up","Pinky Up","Stairs","Alberti","Chord Pulse"],
  "ARP_RATES": ["1/4","1/8","1/16","1/32","1/8T","1/16T","1/8.","1/16."],
+ "DRUM_KITS": ["707 Kit","808 Kit","909 Kit"],
  "LOOP_BARS": ["Free","1 bar","2 bars","4 bars","8 bars"],
  "INVERSIONS": ["Root","1st","2nd","3rd"],
  "ARP_OCTS": ["1 Oct","2 Oct","3 Oct","4 Oct"],
@@ -142,6 +143,7 @@ DRUMS = ["Kick","Snare","Clap","Hat C","Hat O","Tom","Rim","Perc"]
 add("DR_RUN","Drums",0,1,0,"Bool")
 add("DR_VOL","Drum Vol",0,1,0.8,"Lin","Pct")
 add("DR_SWING","Drum Swing",0,0.6,0,"Lin","Pct")
+add("DR_KIT","Drum Kit",0,2,1,en("DRUM_KITS"))
 for i,n in enumerate(DRUMS,1):
     add("DR_T%d"%i,n+" Steps",0,65535,0,"Int","Int")
     add("DR_V%d"%i,n+" Vol",0,1,0.8,"Lin","Pct")
