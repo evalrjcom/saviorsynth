@@ -1,0 +1,36 @@
+[package]
+# NOTE: the package name carries the file/version tag. Every in-app reference
+# (window title, --help, preset headers) is derived from CARGO_PKG_NAME /
+# CARGO_PKG_VERSION, so bumping the version means editing ONLY this block
+# (+ renaming the project folder / docs, see tools/bump_version.sh).
+name = "saviorsynth_v1"
+version = "1.0.0"
+edition = "2021"
+description = "Wavetable synthesizer in Rust + FLTK with unison, warp, mod matrix, FX and 80+ presets"
+license = "MIT"
+
+[features]
+default = ["midi"]
+midi = ["dep:midir"]
+
+[dependencies]
+cpal = "0.15"
+crossbeam-queue = "0.3"
+midir = { version = "0.10", optional = true }
+
+# FLTK: prebuilt bundle on Linux, compiled from source for the mingw cross build
+[target.'cfg(windows)'.dependencies]
+fltk = "1"
+[target.'cfg(not(windows))'.dependencies]
+fltk = { version = "1", features = ["fltk-bundled"] }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+debug = false
+
+[profile.dev]
+opt-level = 2
