@@ -12,6 +12,8 @@ pub enum Event {
     NoteOff(u8),
     AllOff,
     Sustain(bool),
+    Loop(u8),      // looper command (see looper::Cmd)
+    Drum(u8, u8),  // audition a drum voice (track, velocity)
 }
 
 pub const SCOPE_LEN: usize = 1024;
@@ -29,6 +31,9 @@ pub struct Shared {
     pub sample_rate: AtomicU32,
     pub chord_root: AtomicU32, // MIDI note of the sounding chord root, or u32::MAX when none
     pub chord_mask: AtomicU32, // bit d set = chord contains root+d semitones
+    pub loop_state: AtomicU32, // looper::LState as u32
+    pub loop_pos: AtomicU32,   // f32 0..1 position/progress
+    pub drum_step: AtomicU32,  // current drum step 0..15, or u32::MAX when stopped
 }
 
 impl Shared {
@@ -46,6 +51,9 @@ impl Shared {
             sample_rate: AtomicU32::new(48000),
             chord_root: AtomicU32::new(u32::MAX),
             chord_mask: AtomicU32::new(0),
+            loop_state: AtomicU32::new(0),
+            loop_pos: AtomicU32::new(0),
+            drum_step: AtomicU32::new(u32::MAX),
         })
     }
     /// Never blocks; silently drops the event if the queue is full (only possible under a flood).

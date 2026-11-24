@@ -115,4 +115,32 @@ mod tests {
         for _ in 0..60 { eng.fill(&mut buf); }
         assert_eq!(shared.voices.load(Ordering::Relaxed), 0, "no stuck voices after release");
     }
+
+    /// Drum machine -> looper through the real engine: record one bar of beat, stop the drums, and the
+    /// loop keeps playing it back; Clear returns to silence.
+    #[test]
+    fn drums_into_looper_through_engine() {
+        let bank = Arc::new(WaveBank::generate());
+        let shared = Shared::new();
+        let mut v = default_patch();
+        v[DR_RUN] = 1.0; v[BPM] = 120.0; v[LP_BARS] = 1.0; v[DR_T1] = crate::drums::mask("x...x...x...x...") as f32;
+        shared.params.load(&v);
+        let mut eng = Engine::new(48000.0, shared.clone(), bank.clone());
+        let mut buf = vec![0.0f32; 2 * 4800];
+        eng.fill(&mut buf);
+        shared.push(crate::shared::Event::Loop(0)); // record 1 bar (2 s)
+        for _ in 0..21 { eng.fill(&mut buf); }
+        assert_eq!(shared.loop_state.load(Ordering::Relaxed), 2, "auto-switched to Play after one bar");
+        v[DR_RUN] = 0.0; shared.params.load(&v); // drums off: only the loop is audible now
+        for _ in 0..8 { eng.fill(&mut buf); } // let drum tails die
+        let mut peak = 0.0f32;
+        for _ in 0..20 { eng.fill(&mut buf); peak = peak.max(buf.iter().fold(0.0, |m, x| m.max(x.abs()))); }
+        assert!(peak > 0.05, "loop must keep playing the recorded beat, peak {peak}");
+        shared.push(crate::shared::Event::Loop(3)); // clear
+        for _ in 0..30 { eng.fill(&mut buf); }
+        assert_eq!(shared.loop_state.load(Ordering::Relaxed), 0);
+        for _ in 0..5 { eng.fill(&mut buf); }
+        assert!(buf.iter().all(|x| x.abs() < 1e-4), "silent after clear");
+    }
 }
+

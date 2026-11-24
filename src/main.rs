@@ -2,8 +2,10 @@
 //! All naming/version strings come from Cargo.toml so a version bump is a one-line change.
 
 mod audio;
+mod drums;
 mod engine;
 mod fx;
+mod looper;
 mod midi;
 mod offline;
 mod params;

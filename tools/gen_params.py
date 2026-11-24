@@ -21,6 +21,7 @@ ENUMS = {
  "PROG_LENS": ["2 bars","1 bar","1/2 bar","1 beat"],
  "ARP_PATS": ["Up","Down","Up-Down","Down-Up","Up+Down","Played","Random","Converge","Diverge","Thumb Up","Pinky Up","Stairs","Alberti","Chord Pulse"],
  "ARP_RATES": ["1/4","1/8","1/16","1/32","1/8T","1/16T","1/8.","1/16."],
+ "LOOP_BARS": ["Free","1 bar","2 bars","4 bars","8 bars"],
  "INVERSIONS": ["Root","1st","2nd","3rd"],
  "ARP_OCTS": ["1 Oct","2 Oct","3 Oct","4 Oct"],
  "ARP_INVS": ["Fixed","Cycle Up","Cycle Down","Ping-Pong"],
@@ -131,6 +132,25 @@ add("AR_SWING","Swing",0,0.6,0,"Lin","Pct")
 add("AR_INVM","Inversions",0,3,0,en("ARP_INVS"))
 add("AR_LATCH","Latch",0,1,0,"Bool")
 add("AR_ACC","Accent",0,1,0.3,"Lin","Pct")
+
+# ---- humanization (applies to arp, chord strum and drums)
+add("HUM_TIME","Humanize Time",0,1,0,"Lin","Pct")
+add("HUM_VEL","Humanize Velocity",0,1,0,"Lin","Pct")
+add("HUM_GATE","Humanize Gate",0,1,0,"Lin","Pct")
+# ---- drum machine (global, kept across preset changes): 8 tracks x 16 steps, step masks are bit fields (bit 0 = step 1)
+DRUMS = ["Kick","Snare","Clap","Hat C","Hat O","Tom","Rim","Perc"]
+add("DR_RUN","Drums",0,1,0,"Bool")
+add("DR_VOL","Drum Vol",0,1,0.8,"Lin","Pct")
+add("DR_SWING","Drum Swing",0,0.6,0,"Lin","Pct")
+for i,n in enumerate(DRUMS,1):
+    add("DR_T%d"%i,n+" Steps",0,65535,0,"Int","Int")
+    add("DR_V%d"%i,n+" Vol",0,1,0.8,"Lin","Pct")
+    add("DR_M%d"%i,n+" Mute",0,1,0,"Bool")
+    add("DR_TUNE%d"%i,n+" Tune",-1,1,0,"Lin","Signed")
+    add("DR_DEC%d"%i,n+" Decay",0,1,0.5,"Lin","Pct")
+# ---- looper (global)
+add("LP_BARS","Loop Length",0,4,2,en("LOOP_BARS"))
+add("LP_VOL","Loop Vol",0,1,0.8,"Lin","Pct")
 
 idx = {p[0]: i for i, p in enumerate(P)}
 out = []

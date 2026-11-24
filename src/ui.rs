@@ -7,7 +7,7 @@ use crate::presets::{self, Preset};
 use crate::shared::{Event as SynthEvent, Shared, SCOPE_LEN};
 use crate::wavetable::WaveBank;
 use crate::{audio, midi, APP_ID, APP_VERSION};
-use fltk::{app, button, dialog, draw, draw::LineStyle, enums::*, frame, menu, prelude::*, widget, window};
+use fltk::{app, button, dialog, draw, draw::LineStyle, enums::*, frame, group, menu, prelude::*, widget, window};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -24,6 +24,10 @@ const ACC: u32 = 0x2fd0e6;
 const ACC2: u32 = 0xf0a030;
 const TRACK: u32 = 0x363e4e;
 fn col(h: u32) -> Color { Color::from_hex(h) }
+
+/// Parameters that belong to the *session*, not the patch: tempo, humanize, drum machine, looper.
+/// They are kept when you browse presets (except "Beats" demos and files you load yourself).
+fn is_global(i: usize) -> bool { let k = PARAMS[i].key; k == "BPM" || k.starts_with("DR_") || k.starts_with("LP_") || k.starts_with("HUM_") }
 
 type Refresh = Rc<RefCell<Vec<Box<dyn Fn()>>>>;
 
@@ -533,7 +537,12 @@ impl Browser {
     fn load(&mut self, idx: usize) {
         if idx >= self.presets.len() { return; }
         self.cur = idx;
-        self.sh.params.load(&self.presets[idx].vals);
+        let mut vals = self.presets[idx].vals.clone();
+        if self.presets[idx].cat != "Beats" && self.presets[idx].cat != "User" {
+            let now = self.sh.params.snapshot();
+            for i in 0..PARAM_COUNT { if is_global(i) { vals[i] = now[i]; } }
+        }
+        self.sh.params.load(&vals);
         self.sh.push(SynthEvent::AllOff);
         if self.cat != 0 && self.presets[idx].cat != self.cats[self.cat - 1] {
             self.cat = self.cats.iter().position(|c| *c == self.presets[idx].cat).map(|i| i + 1).unwrap_or(0);
@@ -563,10 +572,137 @@ impl Browser {
     }
 }
 
+
+// ------------------------------------------------------------------ drum machine + looper widgets
+
+const DG_NAMEW: i32 = 58; // track-name column
+const DG_CW: i32 = 32;    // step cell width
+const DG_RH: i32 = 30;    // row height
+const DG_HEAD: i32 = 14;  // step-number header
+
+/// 8 x 16 step grid. Click toggles a step, drag paints; the playhead follows the sequencer.
+fn drum_grid(c: &Ctx, x: i32, y: i32) -> widget::Widget {
+    let mut wd = widget::Widget::new(x, y, DG_NAMEW + 16 * DG_CW, DG_HEAD + 8 * DG_RH, "");
+    let sh = c.sh.clone();
+    wd.draw(move |w| {
+        let playhead = sh.drum_step.load(std::sync::atomic::Ordering::Relaxed);
+        draw::set_font(Font::Helvetica, 9);
+        for s in 0..16 {
+            draw::set_draw_color(col(if s % 4 == 0 { TXT } else { DIM }));
+            draw::draw_text2(&format!("{}", s + 1), w.x() + DG_NAMEW + s * DG_CW, w.y(), DG_CW, DG_HEAD, Align::Center);
+        }
+        for t in 0..8usize {
+            let ry = w.y() + DG_HEAD + t as i32 * DG_RH;
+            let muted = sh.params.get(DR_M1 + t * 5) >= 0.5;
+            draw::set_font(Font::HelveticaBold, 11);
+            draw::set_draw_color(col(if muted { 0x4a5163 } else { TXT }));
+            draw::draw_text2(crate::drums::NAMES[t], w.x() + 4, ry, DG_NAMEW - 6, DG_RH, Align::Left);
+            let mask = sh.params.get(DR_T1 + t * 5) as u32;
+            for s in 0..16i32 {
+                let rx = w.x() + DG_NAMEW + s * DG_CW;
+                let on = mask & (1 << s) != 0;
+                let base = if (s / 4) % 2 == 0 { PANEL2 } else { 0x303849 };
+                draw::set_draw_color(col(if on { if muted { 0x1a6a76 } else { ACC } } else { base }));
+                draw::draw_rounded_rectf(rx + 2, ry + 3, DG_CW - 4, DG_RH - 6, 4);
+                if playhead == s as u32 {
+                    draw::set_draw_color(col(ACC2));
+                    draw::set_line_style(LineStyle::Solid, 2);
+                    draw::draw_rect(rx + 2, ry + 3, DG_CW - 4, DG_RH - 6);
+                    draw::set_line_style(LineStyle::Solid, 0);
+                }
+            }
+        }
+    });
+    let sh = c.sh.clone();
+    let paint: Rc<Cell<Option<bool>>> = Rc::new(Cell::new(None));
+    wd.handle(move |w, ev| {
+        let cell = |w: &widget::Widget| -> Option<(usize, i32)> {
+            let (mx, my) = (app::event_x() - w.x() - DG_NAMEW, app::event_y() - w.y() - DG_HEAD);
+            if mx < 0 || my < 0 { return None; }
+            let (s, t) = (mx / DG_CW, (my / DG_RH) as usize);
+            if s >= 16 || t >= 8 { None } else { Some((t, s)) }
+        };
+        match ev {
+            Event::Push | Event::Drag => {
+                let Some((t, s)) = cell(w) else { return true };
+                let p = DR_T1 + t * 5;
+                let m = sh.params.get(p) as u32;
+                let want = match paint.get() { Some(v) if ev == Event::Drag => v, _ => { let v = m & (1 << s) == 0; paint.set(Some(v)); v } };
+                let nm = if want { m | (1 << s) } else { m & !(1 << s) };
+                if nm != m {
+                    sh.params.set(p, nm as f32);
+                    if want { sh.push(SynthEvent::Drum(t as u8, 110)); }
+                    w.redraw();
+                }
+                true
+            }
+            Event::Released => { paint.set(None); true }
+            _ => false,
+        }
+    });
+    wd
+}
+
+/// Looper state + progress bar (read-only, redrawn by the UI timer).
+fn loop_view(sh: Arc<Shared>, x: i32, y: i32, w: i32, h: i32) -> widget::Widget {
+    let mut wd = widget::Widget::new(x, y, w, h, "");
+    wd.draw(move |w| {
+        let st = sh.loop_state.load(std::sync::atomic::Ordering::Relaxed);
+        let pos = f32::from_bits(sh.loop_pos.load(std::sync::atomic::Ordering::Relaxed)).clamp(0.0, 1.0);
+        let (txt, c) = match st { 1 => ("RECORDING", 0xe05050), 2 => ("PLAYING", 0x40d080), 3 => ("OVERDUBBING", ACC2), 4 => ("STOPPED", DIM), _ => ("EMPTY - press REC", DIM) };
+        draw::set_draw_color(col(BG));
+        draw::draw_rounded_rectf(w.x(), w.y(), w.w(), w.h(), 4);
+        let fw = (w.w() as f32 * pos) as i32;
+        draw::set_draw_color(col(if st == 1 { 0x6a2a2a } else if st == 3 { 0x6a4a1a } else { 0x1a5a68 }));
+        if st != 0 { draw::draw_rectf(w.x(), w.y(), fw, w.h()); }
+        for i in 1..16 { draw::set_draw_color(col(EDGE)); draw::draw_line(w.x() + w.w() * i / 16, w.y(), w.x() + w.w() * i / 16, w.y() + if i % 4 == 0 { w.h() } else { w.h() / 3 }); }
+        draw::set_font(Font::HelveticaBold, 13);
+        draw::set_draw_color(col(c));
+        draw::draw_text2(txt, w.x() + 10, w.y(), w.w() - 20, w.h(), Align::Left);
+    });
+    wd
+}
+
+/// Always-visible numeric readout of a parameter (e.g. "120 bpm").
+fn readout(c: &Ctx, x: i32, y: i32, w: i32, h: i32, p: usize) -> widget::Widget {
+    let mut wd = widget::Widget::new(x, y, w, h, "");
+    let sh = c.sh.clone();
+    wd.draw(move |w| {
+        draw::set_draw_color(col(PANEL));
+        draw::draw_rectf(w.x(), w.y(), w.w(), w.h());
+        draw::set_font(Font::HelveticaBold, 10);
+        draw::set_draw_color(col(ACC2));
+        draw::draw_text2(&PARAMS[p].format(sh.params.get(p)), w.x(), w.y(), w.w(), w.h(), Align::Left);
+    });
+    wd
+}
+
+/// Tap-tempo button: averages the last few taps (resets after a 2.5 s pause) and writes BPM.
+fn tap_button(c: &Ctx, x: i32, y: i32, w: i32, h: i32) -> button::Button {
+    let mut b = button::Button::new(x, y, w, h, "Tap");
+    style_button(&mut b);
+    let (sh, taps): (Arc<Shared>, Rc<RefCell<Vec<std::time::Instant>>>) = (c.sh.clone(), Rc::new(RefCell::new(Vec::new())));
+    b.set_callback(move |_| {
+        let now = std::time::Instant::now();
+        let mut t = taps.borrow_mut();
+        if t.last().map_or(false, |l| now.duration_since(*l).as_secs_f32() > 2.5) { t.clear(); }
+        t.push(now);
+        if t.len() > 6 { t.remove(0); }
+        if t.len() >= 2 {
+            let span = now.duration_since(t[0]).as_secs_f32() / (t.len() - 1) as f32;
+            if span > 0.0 { sh.params.set(BPM, (60.0 / span).clamp(PARAMS[BPM].min, PARAMS[BPM].max)); }
+        }
+        app::redraw();
+    });
+    b
+}
+
 fn randomize(sh: &Shared) {
     let mut s = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(1) | 1;
     let mut r = move || { s ^= s << 13; s ^= s >> 7; s ^= s << 17; (s >> 11) as f32 / (1u64 << 53) as f32 };
     let mut v = default_patch();
+    let now = sh.params.snapshot();
+    for i in 0..PARAM_COUNT { if is_global(i) { v[i] = now[i]; } }
     let mut set = |k: usize, x: f32| v[k] = PARAMS[k].clamp(x);
     let exp = |lo: f32, hi: f32, t: f32| lo * (hi / lo).powf(t);
     for o in &OSC[..2] {
@@ -620,7 +756,7 @@ pub fn run(bank: Arc<WaveBank>, list: Vec<Preset>) {
     let c = Ctx { sh: sh.clone(), bank: bank.clone(), refresh: refresh.clone() };
     let pressed: Pressed = Rc::new(RefCell::new([0u8; 128]));
 
-    let mut win = window::Window::new(60, 40, 1240, 804, "");
+    let mut win = window::Window::new(60, 40, 1240, 816, "");
     win.set_label(&format!("{} {}", APP_ID, APP_VERSION));
     win.set_color(col(BG));
     win.make_resizable(false);
@@ -642,11 +778,15 @@ pub fn run(bank: Arc<WaveBank>, list: Vec<Preset>) {
     let mut b_init = button::Button::new(838, 12, 50, 24, "Init");
     for b in [&mut prev, &mut next, &mut b_save, &mut b_load, &mut b_rand, &mut b_init] { style_button(b); }
     style_choice(&mut cat_choice); style_choice(&mut preset_choice);
-    let mut midi_choice = menu::Choice::new(1010, 12, 222, 24, "");
+    let mut b_synth = button::Button::new(900, 12, 84, 24, "SYNTH");
+    let mut b_drums = button::Button::new(988, 12, 100, 24, "DRUMS + LOOP");
+    style_button(&mut b_synth); style_button(&mut b_drums);
+    let mut midi_choice = menu::Choice::new(1096, 14, 136, 22, "");
     style_choice(&mut midi_choice);
-    label(900, 6, 108, 14, "MIDI input", DIM, 9);
-    label(900, 26, 330, 16, &format!("Audio: {}", audio_info), if audio_res.is_ok() { DIM } else { 0xe05050 }, 10);
+    label(1096, 1, 108, 12, "MIDI input", DIM, 9);
+    label(236, 38, 650, 12, &format!("Audio: {}", audio_info), if audio_res.is_ok() { DIM } else { 0xe05050 }, 9);
 
+    let g_synth = group::Group::new(0, 50, 1240, 554, "");
     // ---------------------------------------------------- row 1: oscillators, sub/noise, filter, master
     let (r1, r1h) = (50, 236);
     for (o, x) in [(0usize, 8i32), (1, 312)] {
@@ -792,12 +932,75 @@ pub fn run(bank: Arc<WaveBank>, list: Vec<Preset>) {
         ctl(&c, x + 102, r3 + 40, 48, 66, R_MIX, "Mix", Style::Knob);
     }
 
+    g_synth.end();
+
+    // ---------------------------------------------------- page 2: drum machine + looper
+    let mut g_drum = group::Group::new(0, 50, 1240, 554, "");
+    let (grid_w, loop_w) = {
+        let (x, y) = (8, 50);
+        panel(x, y, 770, 338, "DRUM MACHINE   (click or drag to paint steps, 16 steps = one bar)");
+        toggle(&c, x + 8, y + 22, 56, 22, DR_RUN, "RUN");
+        let mut pat = menu::Choice::new(x + 70, y + 22, 160, 22, "");
+        style_choice(&mut pat);
+        pat.add_choice("-- load pattern --"); pat.add_choice("(clear all steps)");
+        for p in crate::drums::PATTERNS.iter() { pat.add_choice(&esc(p.name)); }
+        pat.set_value(0);
+        { let sh = sh.clone(); pat.set_callback(move |ch| {
+            let v = ch.value();
+            if v < 1 { return; }
+            let m = if v == 1 { [0u16; crate::drums::TRACKS] } else { crate::drums::pattern_masks((v - 2) as usize) };
+            for t in 0..crate::drums::TRACKS { sh.params.set(DR_T1 + t * 5, m[t] as f32); }
+            ch.set_value(0); app::redraw();
+        }); }
+        label(x + 240, y + 26, 40, 14, "SWING", DIM, 9); ctl(&c, x + 276, y + 22, 90, 22, DR_SWING, "", Style::HSlider);
+        label(x + 376, y + 26, 40, 14, "LEVEL", DIM, 9); ctl(&c, x + 410, y + 22, 90, 22, DR_VOL, "", Style::HSlider);
+        label(x + 510, y + 26, 30, 14, "BPM", DIM, 9); ctl(&c, x + 536, y + 22, 90, 22, BPM, "", Style::HSlider);
+        readout(&c, x + 630, y + 24, 56, 18, BPM); tap_button(&c, x + 690, y + 22, 40, 22);
+        let gy = y + 52;
+        label(x + 586, gy, 40, 12, "MUTE", DIM, 8); label(x + 640, gy, 60, 12, "LEVEL", DIM, 8);
+        let grid = drum_grid(&c, x + 8, gy);
+        for t in 0..crate::drums::TRACKS {
+            let ry = gy + DG_HEAD + t as i32 * DG_RH + 4;
+            toggle(&c, x + 586, ry, 40, 22, DR_M1 + t * 5, "M");
+            ctl(&c, x + 636, ry, 120, 22, DR_V1 + t * 5, "", Style::HSlider);
+        }
+        // sound shaping
+        let sx = 782;
+        panel(sx, y, 450, 338, "DRUM SOUNDS");
+        label(sx + 80, gy, 100, 12, "TUNE", DIM, 8); label(sx + 262, gy, 100, 12, "DECAY", DIM, 8);
+        for t in 0..crate::drums::TRACKS {
+            let ry = gy + DG_HEAD + t as i32 * DG_RH + 4;
+            label(sx + 10, ry + 4, 60, 14, crate::drums::NAMES[t], TXT, 11);
+            ctl(&c, sx + 72, ry, 170, 22, DR_TUNE1 + t * 5, "", Style::HSlider);
+            ctl(&c, sx + 254, ry, 170, 22, DR_DEC1 + t * 5, "", Style::HSlider);
+        }
+        // looper
+        let ly = 396;
+        panel(8, ly, 1224, 150, "LOOPER   (records the live mix: synth + drums)");
+        let mut b_rec = button::Button::new(20, ly + 28, 130, 46, "REC / DUB");
+        let mut b_play = button::Button::new(156, ly + 28, 130, 46, "PLAY / STOP");
+        let mut b_undo = button::Button::new(292, ly + 28, 100, 46, "UNDO DUB");
+        let mut b_clear = button::Button::new(398, ly + 28, 100, 46, "CLEAR");
+        for (b, cmd) in [(&mut b_rec, 0u8), (&mut b_play, 1), (&mut b_undo, 2), (&mut b_clear, 3)] {
+            style_button(b); b.set_label_size(12);
+            let sh = sh.clone(); b.set_callback(move |_| sh.push(SynthEvent::Loop(cmd)));
+        }
+        label(520, ly + 24, 100, 11, "LENGTH", DIM, 8); choice(&c, 520, ly + 38, 110, 22, LP_BARS);
+        label(650, ly + 24, 100, 11, "LOOP LEVEL", DIM, 8); ctl(&c, 650, ly + 38, 170, 22, LP_VOL, "", Style::HSlider);
+        let lv = loop_view(sh.clone(), 20, ly + 84, 1200, 28);
+        label(20, ly + 118, 1200, 26, "REC starts recording at once for the chosen number of bars (length from BPM) and then loops; press REC again to overdub, again to stop overdubbing. In Free length, press REC again to set the loop length. UNDO DUB removes all overdubs. CLEAR empties the loop.", DIM, 9);
+        (grid, lv)
+    };
+    g_drum.end();
+    g_drum.hide();
+
     // ---------------------------------------------------- performance: chords / progressions / arpeggiator
     let r4 = 604;
+    let ph = 124;
     let mut chord_lbl = label(500, r4 + 60, 160, 34, "", ACC2, 20);
     {
         let x = 8;
-        panel(x, r4, 660, 100, "CHORDS  &  PROGRESSIONS   (play ONE key)");
+        panel(x, r4, 660, ph, "CHORDS  &  PROGRESSIONS   (play ONE key)");
         let h = |t: &str, px: i32, py: i32| { label(px, py, 100, 11, t, DIM, 8); };
         let mut px = x + 6;
         for (t, p, w) in [("MODE", CH_MODE, 100), ("SCALE", CH_SCALE, 94), ("DEGREE", CH_DEG, 58), ("QUALITY", CH_QUAL, 78), ("VARIATION", CH_EXT, 90), ("INVERSION", CH_INV, 70)] {
@@ -808,10 +1011,13 @@ pub fn run(bank: Arc<WaveBank>, list: Vec<Preset>) {
         h("STEP LENGTH", x + 136, r4 + 54); choice(&c, x + 136, r4 + 66, 74, 20, PR_LEN);
         h("CUSTOM STEPS (when Progression = Custom)", x + 216, r4 + 54);
         for (i, p) in [PR_S1, PR_S2, PR_S3, PR_S4].iter().enumerate() { choice(&c, x + 216 + i as i32 * 62, r4 + 66, 58, 20, *p); }
+        h("TEMPO (arp, progression, drums, looper)", x + 6, r4 + 91);
+        ctl(&c, x + 6, r4 + 100, 200, 20, BPM, "", Style::HSlider);
+        readout(&c, x + 212, r4 + 101, 64, 18, BPM); tap_button(&c, x + 282, r4 + 100, 44, 20);
     }
     {
         let x = 672;
-        panel(x, r4, 560, 100, "ARPEGGIATOR");
+        panel(x, r4, 560, ph, "ARPEGGIATOR  +  HUMANIZE");
         let h = |t: &str, px: i32, py: i32| { label(px, py, 100, 11, t, DIM, 8); };
         toggle(&c, x + 6, r4 + 29, 44, 20, AR_ON, "ON");
         let mut px = x + 56;
@@ -820,19 +1026,39 @@ pub fn run(bank: Arc<WaveBank>, list: Vec<Preset>) {
         }
         toggle(&c, px, r4 + 29, 52, 20, AR_LATCH, "Latch");
         for (i, (t, p)) in [("GATE", AR_GATE), ("SWING", AR_SWING), ("ACCENT", AR_ACC)].iter().enumerate() {
-            let sx = x + 8 + i as i32 * 184;
-            h(t, sx, r4 + 58); ctl(&c, sx, r4 + 68, 170, 22, *p, "", Style::HSlider);
+            let sx = x + 8 + i as i32 * 132;
+            h(t, sx, r4 + 54); ctl(&c, sx, r4 + 64, 126, 22, *p, "", Style::HSlider);
+        }
+        h("BPM", x + 408, r4 + 54); ctl(&c, x + 408, r4 + 64, 90, 22, BPM, "", Style::HSlider);
+        tap_button(&c, x + 502, r4 + 64, 48, 22);
+        label(x + 8, r4 + 98, 70, 14, "HUMANIZE", ACC2, 10);
+        for (i, (t, p)) in [("TIME", HUM_TIME), ("VELOCITY", HUM_VEL), ("GATE", HUM_GATE)].iter().enumerate() {
+            let sx = x + 78 + i as i32 * 160;
+            label(sx, r4 + 99, 50, 12, t, DIM, 8); ctl(&c, sx + 42, r4 + 94, 104, 22, *p, "", Style::HSlider);
         }
     }
     chord_lbl.set_label_font(Font::HelveticaBold);
 
     // ---------------------------------------------------- keyboard
-    let r5 = r4 + 104;
-    wheel(sh.clone(), 8, r5, 28, 84, true);
-    wheel(sh.clone(), 40, r5, 28, 84, false);
-    let mut kb = keyboard(sh.clone(), pressed.clone(), 76, r5, 84);
+    let r5 = r4 + ph + 4;
+    wheel(sh.clone(), 8, r5, 28, 76, true);
+    wheel(sh.clone(), 40, r5, 28, 76, false);
+    let mut kb = keyboard(sh.clone(), pressed.clone(), 76, r5, 76);
     let octave = Rc::new(Cell::new(48i32));
     win.end();
+
+    // page switching
+    {
+        let (mut gs, mut gd, mut bs, mut bd) = (g_synth.clone(), g_drum.clone(), b_synth.clone(), b_drums.clone());
+        let mut show = move |drums: bool| {
+            if drums { gs.hide(); gd.show(); } else { gd.hide(); gs.show(); }
+            bs.set_color(col(if drums { PANEL } else { ACC })); bd.set_color(col(if drums { ACC } else { PANEL }));
+            bs.redraw(); bd.redraw(); app::redraw();
+        };
+        let mut s1 = show.clone(); b_synth.set_callback(move |_| s1(false));
+        let mut s2 = show.clone(); b_drums.set_callback(move |_| s2(true));
+        show(false);
+    }
 
     // ---------------------------------------------------- preset browser wiring
     let browser = Rc::new(RefCell::new(Browser {
@@ -958,6 +1184,7 @@ pub fn run(bank: Arc<WaveBank>, list: Vec<Preset>) {
     {
         let (mut scope_w, mut meter_w) = (scope.0.clone(), scope.1.clone());
         let (sh, mut kbw) = (sh.clone(), kb.clone());
+        let (mut gridw, mut loopw) = (grid_w.clone(), loop_w.clone());
         let last = Rc::new(Cell::new(u32::MAX));
         let mut chord_w = chord_lbl.clone();
         let last_chord = Rc::new(RefCell::new(String::new()));
@@ -966,6 +1193,7 @@ pub fn run(bank: Arc<WaveBank>, list: Vec<Preset>) {
             let name = if r == u32::MAX { String::new() } else { crate::perform::chord_name(r as i32, sh.chord_mask.load(std::sync::atomic::Ordering::Relaxed)) };
             if *last_chord.borrow() != name { chord_w.set_label(&name); chord_w.redraw(); *last_chord.borrow_mut() = name; }
             scope_w.redraw(); meter_w.redraw(); kbw.redraw();
+            if gridw.visible() { gridw.redraw(); loopw.redraw(); }
             let n = sh.voices.load(std::sync::atomic::Ordering::Relaxed);
             if n != last.get() { last.set(n); voices_lbl.set_label(&format!("Voices: {}", n)); voices_lbl.redraw(); }
             app::repeat_timeout3(0.04, h);

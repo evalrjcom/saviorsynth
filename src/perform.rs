@@ -129,6 +129,7 @@ pub struct Performer {
     src: [(u8, u8); MAXKEYS], nsrc: usize,   // effective source (differs from held while latched)
     owned: [u8; 64], nowned: usize,          // notes this stage currently holds on in the engine
     ovel: u8,
+    pend: [(i32, u8, u8); 64], npend: usize, // humanized note-ons waiting (samples left, note, vel)
     pub out: [PEv; MAXOUT], pub nout: usize,
     beat: f64, start: f64, step: u32, cycle: u32, gate_off: f64, running: bool, rnd: u32,
     pub info_root: i32, pub info_mask: u32,  // for the UI chord display (-1 = none)
@@ -138,7 +139,7 @@ impl Performer {
     pub fn new() -> Performer {
         Performer {
             held: [(0, 0); MAXKEYS], nheld: 0, src: [(0, 0); MAXKEYS], nsrc: 0,
-            owned: [0; 64], nowned: 0, ovel: 100, out: [PEv::default(); MAXOUT], nout: 0,
+            owned: [0; 64], nowned: 0, ovel: 100, pend: [(0, 0, 0); 64], npend: 0, out: [PEv::default(); MAXOUT], nout: 0,
             beat: 0.0, start: 0.0, step: 0, cycle: 0, gate_off: -1.0, running: false, rnd: 0x2545F491,
             info_root: -1, info_mask: 0,
         }
@@ -179,7 +180,25 @@ impl Performer {
         self.out[self.nout] = PEv { on, note, vel }; self.nout += 1;
     }
     fn release_owned(&mut self) {
+        self.npend = 0; // pending (humanized) note-ons are cancelled together with the sounding notes
         while self.nowned > 0 && self.nout < MAXOUT { let n = self.owned[self.nowned - 1] as i32; self.emit(false, n, 0); }
+    }
+
+    #[inline] fn rnd01(&mut self) -> f32 { let mut x = self.rnd; x ^= x << 13; x ^= x >> 17; x ^= x << 5; self.rnd = x; (x >> 8) as f32 / 16777216.0 }
+
+    fn is_pending(&self, note: i32) -> bool { self.pend[..self.npend].iter().any(|p| p.1 as i32 == note) }
+
+    /// Note-on with optional humanization: random late timing (strum / laid-back feel) and velocity spread.
+    /// `max_delay` (samples) keeps the delay inside the note's own step so notes never land after their gate.
+    fn emit_on_h(&mut self, note: i32, vel: u8, s: &[f32], sr: f32, max_delay: f32) {
+        let (ht, hv) = (s[HUM_TIME], s[HUM_VEL]);
+        let v = if hv > 0.0 { ((vel as f32) * (1.0 + (self.rnd01() - 0.5) * 2.0 * hv * 0.3)).clamp(1.0, 127.0) as u8 } else { vel };
+        let delay = if ht > 0.0 { (self.rnd01() * ht * 0.035 * sr).min(max_delay.max(0.0)) } else { 0.0 };
+        if delay < BLOCK_SAMPLES as f32 || self.npend >= self.pend.len() || !(0..=127).contains(&note) {
+            self.emit(true, note, v);
+        } else {
+            self.pend[self.npend] = (delay as i32, note as u8, v); self.npend += 1;
+        }
     }
 
     /// Chord shape (absolute MIDI notes, ascending) for the current source keys. Also reports the chord root.
@@ -208,6 +227,12 @@ impl Performer {
     /// Advance one render block. Returns the number of events in `self.out`.
     pub fn process(&mut self, s: &[f32], bpm: f32, sr: f32) -> usize {
         self.nout = 0;
+        // humanized notes whose delay has elapsed
+        let mut i = 0;
+        while i < self.npend {
+            self.pend[i].0 -= BLOCK_SAMPLES as i32;
+            if self.pend[i].0 <= 0 { let (_, n, v) = self.pend[i]; self.pend.copy_within(i + 1..self.npend, i); self.npend -= 1; self.emit(true, n as i32, v); } else { i += 1; }
+        }
         let mode = (s[CH_MODE] as usize).min(3);
         let arp = s[AR_ON] >= 0.5;
         let dt = (bpm.clamp(20.0, 300.0) as f64 / 60.0) * BLOCK_SAMPLES / (sr.max(8000.0) as f64);
@@ -231,13 +256,18 @@ impl Performer {
         let vel = self.ovel;
 
         if !arp {
-            // sustained chord: diff the desired note set against what is sounding
+            // sustained chord: diff the desired note set against what is sounding (or about to sound)
             let mut i = 0;
             while i < self.nowned && self.nout < MAXOUT {
                 let n = self.owned[i] as i32;
                 if !base.v[..base.n].contains(&n) { self.emit(false, n, 0); } else { i += 1; }
             }
-            for j in 0..base.n { let n = base.v[j]; if !self.owned[..self.nowned].contains(&(n.clamp(0, 127) as u8)) { self.emit(true, n, vel); } }
+            let mut j = 0;
+            while j < self.npend { if base.v[..base.n].contains(&(self.pend[j].1 as i32)) { j += 1; } else { self.pend.copy_within(j + 1..self.npend, j); self.npend -= 1; } }
+            for j in 0..base.n {
+                let n = base.v[j];
+                if !self.owned[..self.nowned].contains(&(n.clamp(0, 127) as u8)) && !self.is_pending(n) { self.emit_on_h(n, vel, s, sr, sr * 0.1); }
+            }
             self.beat = end;
             return self.nout;
         }
@@ -270,12 +300,16 @@ impl Performer {
             let accent = if self.step % 4 == 0 { 1.0 + 0.3 * acc } else { 1.0 - 0.15 * acc };
             let v = ((vel as f32) * accent).clamp(1.0, 127.0) as u8;
             let (idx, cyc_len) = pat_index(pat, seq.n, self.step, &mut self.rnd);
+            let step_samples = (l * 60.0 / bpm.clamp(20.0, 300.0) as f64) as f32 * sr;
+            let maxd = step_samples * 0.45;
             if pat == 13 {
-                for j in 0..shape.n { self.emit(true, shape.v[j], v); }
+                for j in 0..shape.n { self.emit_on_h(shape.v[j], v, s, sr, maxd); }
             } else {
-                self.emit(true, seq.v[idx], v);
+                self.emit_on_h(seq.v[idx], v, s, sr, maxd);
             }
-            self.gate_off = t_of(self.step) + (s[AR_GATE] as f64) * l;
+            let hg = s[HUM_GATE] as f64;
+            let gate = if hg > 0.0 { ((s[AR_GATE] as f64) * (1.0 + (self.rnd01() as f64 - 0.5) * hg * 0.8)).clamp(0.02, 1.0) } else { s[AR_GATE] as f64 };
+            self.gate_off = t_of(self.step) + gate * l;
             self.step = self.step.wrapping_add(1);
             if self.step % cyc_len == 0 { self.cycle = self.cycle.wrapping_add(1); }
         }
@@ -405,5 +439,27 @@ mod tests {
         assert_eq!((p.nsrc, p.src[0].0), (1, 64)); // replaced by new gesture
         p.track_off(64, false); p.unlatch();
         assert_eq!(p.nsrc, 0);
+    }
+
+    #[test]
+    fn humanize_varies_velocity_and_timing_but_never_hangs_notes() {
+        for chord_only in [false, true] {
+            let mut s = snap();
+            set(&mut s, CH_MODE, 1.0); set(&mut s, HUM_TIME, 1.0); set(&mut s, HUM_VEL, 1.0); set(&mut s, HUM_GATE, 1.0);
+            if !chord_only { set(&mut s, AR_ON, 1.0); set(&mut s, AR_PAT, 6.0); set(&mut s, AR_RATE, 3.0); }
+            let mut p = Performer::new();
+            p.track_on(50, 100, false);
+            let (mut on, mut off, mut vels) = (0, 0, std::collections::BTreeSet::new());
+            for blk in 0..6000 {
+                if chord_only && blk % 1500 == 0 { p.track_off(50, false); p.track_on(50 + (blk / 1500) as u8, 100, false); }
+                let n = p.process(&s, 150.0, 48000.0);
+                for e in &p.out[..n] { if e.on { on += 1; vels.insert(e.vel); } else { off += 1; } }
+            }
+            p.track_off(50, false); p.track_off(51, false); p.track_off(52, false); p.track_off(53, false);
+            for _ in 0..4 { let n = p.process(&s, 150.0, 48000.0); for e in &p.out[..n] { if e.on { on += 1 } else { off += 1 } } }
+            assert!(on > 3 && on == off, "chord_only={chord_only} on={on} off={off}");
+            assert!(vels.len() > 2, "velocities should vary: {vels:?}");
+            assert_eq!(p.nowned, 0);
+        }
     }
 }

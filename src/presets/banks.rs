@@ -8,6 +8,7 @@ use super::{Preset, B};
 pub mod vintage;
 pub mod hits;
 pub mod playable;
+pub mod beats;
 
 pub fn add(out: &mut Vec<Preset>) {
     macro_rules! p {

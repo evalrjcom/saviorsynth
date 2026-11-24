@@ -1,10 +1,10 @@
-# saviorsynth_v3 — wavetable synthesizer (Rust + FLTK)
+# saviorsynth_v4 — wavetable synthesizer (Rust + FLTK)
 
 A standalone wavetable synth with one-key chords, progressions and an arpeggiator for **Windows (x64)** and **Linux (x86_64)**.
 Single self-contained executable, no runtime dependencies besides the system audio/GUI libraries
 (WASAPI/Win32 on Windows, ALSA/X11 on Linux). Not a VST/AU plugin — it opens its own window and audio device.
 
-> Independent project. The 285 factory presets are
+> Independent project. The 297 factory presets are
 > original patches that recreate the *sound archetypes* popular wavetable synths are known for (supersaw,
 > reese, wobble, 303 acid, pluck, e-piano, riser, …).
 
@@ -12,8 +12,8 @@ Single self-contained executable, no runtime dependencies besides the system aud
 
 | Platform | Run |
 |---|---|
-| Windows 10/11 x64 | double-click `saviorsynth_v3_windows_x64.exe` |
-| Linux   | `chmod +x saviorsynth_v3_linux_x86_64 && ./saviorsynth_v3_linux_x86_64` (needs the usual desktop libraries: X11, Xinerama/Xcursor/Xfixes, pango, cairo, ALSA — present on any desktop distro; binary needs glibc 2.38+ = Ubuntu 24.04, Debian 13, Fedora 39 or newer; on an older distro just run `./build_all.sh`) |
+| Windows 10/11 x64 | double-click `saviorsynth_v4_windows_x64.exe` |
+| Linux   | `chmod +x saviorsynth_v4_linux_x86_64 && ./saviorsynth_v4_linux_x86_64` (needs the usual desktop libraries: X11, Xinerama/Xcursor/Xfixes, pango, cairo, ALSA — present on any desktop distro; binary needs glibc 2.38+ = Ubuntu 24.04, Debian 13, Fedora 39 or newer; on an older distro just run `./build_all.sh`) |
 
 Play with the on-screen keyboard (mouse; drag to glissando; click height = velocity), the computer keyboard,
 or a MIDI keyboard (first MIDI port is auto-connected; choose another in the top-right menu).
@@ -38,7 +38,7 @@ Double-click any knob to reset it · drag = change · **Shift+drag** = fine · m
 * **FX chain**: distortion (soft, hard, fold, tube, bitcrush, decimate) → stereo chorus → ping-pong delay (free or synced)
   → reverb → DC blocker → soft limiter.
 
-## Presets (285)
+## Presets (297)
 
 Init (3) · Bass (10: Reese, Wobble, Sub, Acid 303, FM Growl, Pluck, Rubber, Dubstep Growl, 808 Sub Boom, Wide Detuned) ·
 Lead (10: Supersaw, Sync, Screamer, Square, Hoover, Portamento, Trance, EDM Brass, Chiptune, Vocal) ·
@@ -86,13 +86,46 @@ The detected chord name (e.g. *Fmaj7*) is shown in the panel while a chord plays
 - `Inversion Cycle` (**inverted chord shapes**): Fixed, Cycle Up, Cycle Down or Ping-Pong — each completed pattern cycle moves the chord to its next inversion.
 - The stage runs on the audio thread with fixed-size buffers (no allocation); toggling it mid-note never leaves stuck notes.
 
+**TEMPO** — one global `BPM` (20-300) drives the arpeggiator, progressions, drum machine and looper. Set it with the BPM
+slider (in the Chords and Arpeggiator panels and on the Drums page) or with **Tap** (average of your last 6 taps).
+
+**HUMANIZE** (Arpeggiator panel, all default to 0 = off) — makes the machine-perfect stage feel played:
+`Time` = notes land slightly late / strummed (up to ~35 ms for arp and chords, ~25 ms for drums),
+`Velocity` = random velocity variation (up to about ±30%), `Gate` = random note-length variation.
+It applies to arp notes, chord strums (one key -> chord notes arrive spread out) and drum hits. Delayed notes are cancelled
+cleanly on key release, so humanizing never causes hanging notes.
+
+## Drum machine and looper (page **DRUMS + LOOP**)
+
+Switch pages with the `SYNTH` / `DRUMS + LOOP` buttons at the top; the chord/arp panels and keyboard stay visible on both pages.
+
+**Drum machine** — 8 synthesized voices (Kick, Snare, Clap, Closed Hat, Open Hat, Tom, Rim, Perc), no samples.
+- 16-step grid (one bar): click a step to toggle it, drag to paint. Clicking also auditions the sound. The playhead follows the transport.
+- `RUN` starts/stops (runs in sync with the audio clock at `BPM`). `Swing` delays every second 16th. `Level` = drum bus.
+- Per track: `M` mute, level slider; **Drum Sounds** panel: `Tune` and `Decay`. The closed hat chokes the open hat.
+- `Load pattern`: House, Techno, Hip-Hop Boom Bap, Trap, Rock, Disco, Funk, Breakbeat, Drum & Bass, Reggaeton, Electro, 80s Pop, Lo-Fi, Afrobeat, Half-Time, Minimal Clicks (or clear all steps).
+
+**Looper** — records the **live mix** (synth + drums, before the loop itself) so you can build up layers.
+| Button | Action |
+|---|---|
+| REC / DUB | Empty: start recording now. Recording: close the loop and start playing. Playing: overdub. Overdubbing: back to play |
+| PLAY / STOP | start / stop playback |
+| UNDO DUB | removes all overdubs, keeps the first take (one level) |
+| CLEAR | empties the loop |
+`Length`: **Free** (press REC again to set the length) or 1 / 2 / 4 / 8 bars (length computed from `BPM`; recording closes by itself).
+Maximum loop 32 s; buffers are allocated once at start (about 24 MB at 48 kHz), nothing is allocated on the audio thread.
+Loop seams are cross-faded (128 samples). `Loop Level` sets playback volume.
+
+**Beats presets (12)** — one-click demos: a sound + one-key progression or arpeggiator + a running drum pattern. Loading a *Beats*
+or *User* preset replaces the session (tempo, drum pattern); other categories keep your BPM, drum, looper and humanize settings.
+
 ## Command line
 
 ```
-saviorsynth_v3 --list                         list presets
-saviorsynth_v3 --render "supersaw" out.wav    render one preset to a 16-bit WAV (--note 48 --seconds 4)
-saviorsynth_v3 --render all outdir/           render every preset
-saviorsynth_v3 --selftest                     headless regression test: NaN / silence / clipping / CPU for all presets
+saviorsynth_v4 --list                         list presets
+saviorsynth_v4 --render "supersaw" out.wav    render one preset to a 16-bit WAV (--note 48 --seconds 4)
+saviorsynth_v4 --render all outdir/           render every preset
+saviorsynth_v4 --selftest                     headless regression test: NaN / silence / clipping / CPU for all presets
 ```
 
 ## Building
@@ -108,10 +141,12 @@ Cross-compiling for Windows uses mingw-w64 (POSIX threads); FLTK is compiled fro
 | `src/wavetable.rs` | in-house FFT, 16 wavetable generators, mip-mapped band-limited bank |
 | `src/engine.rs` | voices, oscillators/unison/warp, filter, envelopes, LFOs, mod matrix, voice allocation, render loop |
 | `src/fx.rs` | distortion, chorus, delay, reverb, DC blocker |
-| `src/presets.rs`, `src/presets/banks*.rs` | preset DSL + 285 factory presets + defensive file parser |
+| `src/presets.rs`, `src/presets/banks*.rs` | preset DSL + 297 factory presets + defensive file parser |
 | `src/audio.rs`, `src/midi.rs` | cpal output stream, midir input (optional feature `midi`) |
 | `src/ui.rs` | FLTK interface (custom knobs/sliders/views/keyboard) |
 | `src/perform.rs` | one-key chords, scale degrees, progressions, arpeggiator patterns + inversion cycling (real-time safe, unit-tested) |
+| `src/drums.rs` | drum synthesis (8 voices), 16-step sequencer, 16 patterns, swing/humanize (real-time safe, unit-tested) |
+| `src/looper.rs` | audio looper: record / play / overdub / undo / clear, bar-synced length, seam fades |
 | `src/offline.rs` | WAV export + self-test |
 
 Real-time rules: the audio callback never locks, allocates or does I/O; the UI and MIDI threads talk to it only through

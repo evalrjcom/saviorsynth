@@ -68,6 +68,13 @@ impl B {
     fn prog(&mut self, pat: &str, len: &str) -> &mut B { self.e("CH_MODE", "Progression").e("PR_PAT", pat).e("PR_LEN", len) }
     /// Arpeggiator: pattern, rate, octave span ("1 Oct".."4 Oct"), gate length.
     fn arp(&mut self, pat: &str, rate: &str, oct: &str, gate: f32) -> &mut B { self.on("AR_ON", true).e("AR_PAT", pat).e("AR_RATE", rate).e("AR_OCT", oct).n("AR_GATE", gate) }
+    /// Built-in drum machine: start running with a named pattern at `bpm` and `swing` (0..0.6).
+    fn drums(&mut self, pattern: &str, bpm: f32, swing: f32) -> &mut B {
+        let Some(pi) = crate::drums::PATTERNS.iter().position(|p| p.name == pattern) else { self.bad(pattern); return self; };
+        let m = crate::drums::pattern_masks(pi);
+        for (t, mk) in m.iter().enumerate() { self.n(&format!("DR_T{}", t + 1), *mk as f32); }
+        self.on("DR_RUN", true).n("BPM", bpm).n("DR_SWING", swing)
+    }
     fn done(&self, cat: &str) -> Preset { Preset { name: self.name.clone(), cat: cat.to_string(), vals: self.v.clone() } }
 }
 
@@ -383,6 +390,7 @@ pub fn factory() -> Vec<Preset> {
     banks::vintage::add(&mut out);
     banks::hits::add(&mut out);
     banks::playable::add(&mut out);
+    banks::beats::add(&mut out);
     out
 }
 
@@ -432,7 +440,7 @@ mod tests {
     #[test]
     fn factory_presets_are_valid() {
         let f = factory();
-        assert!(f.len() >= 250);
+        assert!(f.len() >= 295);
         assert_eq!(bad_count(), 0, "unknown key/label used in a factory preset");
         for p in &f {
             assert_eq!(p.vals.len(), PARAM_COUNT);

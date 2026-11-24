@@ -4,6 +4,8 @@
 
 use crate::fx::{flush, tanh_fast, Fx};
 use crate::params::*;
+use crate::drums::Drums;
+use crate::looper::{Cmd as LoopCmd, Looper};
 use crate::perform::Performer;
 use crate::shared::{Event, Shared, SCOPE_LEN};
 use crate::wavetable::{WaveBank, N_FRAMES, TABLE_SIZE};
@@ -438,6 +440,8 @@ pub struct Engine {
     glob_lfo: [f32; 4],
     stack: Vec<(u8, u8)>,
     perf: Performer,
+    drums: Drums,
+    looper: Looper,
     perf_act: bool,
     latch: bool,
     sustain: bool,
@@ -460,7 +464,7 @@ impl Engine {
             sr, shared, bank, snap,
             voices: (0..MAX_VOICES).map(|i| Voice::new(0x9E3779B9u32.wrapping_mul(i as u32 + 1))).collect(),
             fx: Fx::new(sr), glob_lfo: [0.0; 4],
-            stack: Vec::with_capacity(64), perf: Performer::new(), perf_act: false, latch: false, sustain: false, last_pitch: 60.0, age: 0, bend_s: 0.0,
+            stack: Vec::with_capacity(64), perf: Performer::new(), drums: Drums::new(), looper: Looper::new(sr), perf_act: false, latch: false, sustain: false, last_pitch: 60.0, age: 0, bend_s: 0.0,
             stage_l: [0.0; BLOCK], stage_r: [0.0; BLOCK], pos: BLOCK, pk_l: 0.0, pk_r: 0.0, scope_ctr: 0,
         }
     }
@@ -589,6 +593,8 @@ impl Engine {
                 Some(Event::NoteOff(n)) => { self.perf.track_off(n, self.latch); if !self.perf_act { self.note_off(n); } }
                 Some(Event::AllOff) => { self.perf.reset(); self.all_off(); }
                 Some(Event::Sustain(b)) => self.set_sustain(b),
+                Some(Event::Loop(c)) => if let Some(cmd) = LoopCmd::from_u8(c) { self.looper.command(cmd, self.snap[LP_BARS] as usize, self.snap[BPM], self.sr); },
+                Some(Event::Drum(t, v)) => { let t = (t as usize).min(7); self.drums.trigger(t, v as f32 / 127.0 * self.snap[DR_V1 + t * 5]); }
                 None => break,
             }
         }
@@ -631,12 +637,23 @@ impl Engine {
             bl = [0.0; BLOCK]; br = [0.0; BLOCK];
         }
         self.shared.voices.store(nact, Ordering::Relaxed);
+        self.shared.loop_state.store(self.looper.state as u32, Ordering::Relaxed);
+        self.shared.loop_pos.store(self.looper.progress().to_bits(), Ordering::Relaxed);
+        self.shared.drum_step.store(if self.drums.cur_step >= 0 { self.drums.cur_step as u32 } else { u32::MAX }, Ordering::Relaxed);
         self.fx.begin_block(&self.snap, bpm);
         let m = self.snap[MASTER];
         let mg = m * m * 2.0;
+        // drum machine renders into its own block, mixed ahead of the master (it skips the synth FX chain)
+        let (mut dl, mut dr) = ([0.0f32; BLOCK], [0.0f32; BLOCK]);
+        self.drums.process(&self.snap, bpm, self.sr, &mut dl, &mut dr);
+        self.looper.background();
+        let lvol = self.snap[LP_VOL];
         for i in 0..BLOCK {
             let (l, r) = self.fx.process(bl[i], br[i]);
-            let l = soft_clip(l * mg); let r = soft_clip(r * mg);
+            let (l, r) = ((l + dl[i]) * mg, (r + dr[i]) * mg);
+            // the looper records the live mix (never its own playback) and adds the loop back in
+            let (ll, lr) = self.looper.process(l, r, lvol);
+            let l = soft_clip(l + ll); let r = soft_clip(r + lr);
             self.stage_l[i] = l; self.stage_r[i] = r;
             self.pk_l = (self.pk_l * 0.9998).max(l.abs());
             self.pk_r = (self.pk_r * 0.9998).max(r.abs());

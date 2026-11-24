@@ -76,6 +76,7 @@ pub static PROG_PATS: [&str; 11] = ["I-IV-V-I", "I-V-VI-IV", "II-V-I-I", "I-VI-I
 pub static PROG_LENS: [&str; 4] = ["2 bars", "1 bar", "1/2 bar", "1 beat"];
 pub static ARP_PATS: [&str; 14] = ["Up", "Down", "Up-Down", "Down-Up", "Up+Down", "Played", "Random", "Converge", "Diverge", "Thumb Up", "Pinky Up", "Stairs", "Alberti", "Chord Pulse"];
 pub static ARP_RATES: [&str; 8] = ["1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T", "1/8.", "1/16."];
+pub static LOOP_BARS: [&str; 5] = ["Free", "1 bar", "2 bars", "4 bars", "8 bars"];
 pub static INVERSIONS: [&str; 4] = ["Root", "1st", "2nd", "3rd"];
 pub static ARP_OCTS: [&str; 4] = ["1 Oct", "2 Oct", "3 Oct", "4 Oct"];
 pub static ARP_INVS: [&str; 4] = ["Fixed", "Cycle Up", "Cycle Down", "Ping-Pong"];
@@ -240,7 +241,55 @@ pub const AR_SWING: usize = 155;
 pub const AR_INVM: usize = 156;
 pub const AR_LATCH: usize = 157;
 pub const AR_ACC: usize = 158;
-pub const PARAM_COUNT: usize = 159;
+pub const HUM_TIME: usize = 159;
+pub const HUM_VEL: usize = 160;
+pub const HUM_GATE: usize = 161;
+pub const DR_RUN: usize = 162;
+pub const DR_VOL: usize = 163;
+pub const DR_SWING: usize = 164;
+pub const DR_T1: usize = 165;
+pub const DR_V1: usize = 166;
+pub const DR_M1: usize = 167;
+pub const DR_TUNE1: usize = 168;
+pub const DR_DEC1: usize = 169;
+pub const DR_T2: usize = 170;
+pub const DR_V2: usize = 171;
+pub const DR_M2: usize = 172;
+pub const DR_TUNE2: usize = 173;
+pub const DR_DEC2: usize = 174;
+pub const DR_T3: usize = 175;
+pub const DR_V3: usize = 176;
+pub const DR_M3: usize = 177;
+pub const DR_TUNE3: usize = 178;
+pub const DR_DEC3: usize = 179;
+pub const DR_T4: usize = 180;
+pub const DR_V4: usize = 181;
+pub const DR_M4: usize = 182;
+pub const DR_TUNE4: usize = 183;
+pub const DR_DEC4: usize = 184;
+pub const DR_T5: usize = 185;
+pub const DR_V5: usize = 186;
+pub const DR_M5: usize = 187;
+pub const DR_TUNE5: usize = 188;
+pub const DR_DEC5: usize = 189;
+pub const DR_T6: usize = 190;
+pub const DR_V6: usize = 191;
+pub const DR_M6: usize = 192;
+pub const DR_TUNE6: usize = 193;
+pub const DR_DEC6: usize = 194;
+pub const DR_T7: usize = 195;
+pub const DR_V7: usize = 196;
+pub const DR_M7: usize = 197;
+pub const DR_TUNE7: usize = 198;
+pub const DR_DEC7: usize = 199;
+pub const DR_T8: usize = 200;
+pub const DR_V8: usize = 201;
+pub const DR_M8: usize = 202;
+pub const DR_TUNE8: usize = 203;
+pub const DR_DEC8: usize = 204;
+pub const LP_BARS: usize = 205;
+pub const LP_VOL: usize = 206;
+pub const PARAM_COUNT: usize = 207;
 
 pub static PARAMS: [ParamDef; PARAM_COUNT] = [
     ParamDef { key: "MASTER", name: "Master", min: 0.0, max: 1.0, def: 0.7, kind: Kind::Lin, unit: Unit::Pct },
@@ -402,6 +451,54 @@ pub static PARAMS: [ParamDef; PARAM_COUNT] = [
     ParamDef { key: "AR_INVM", name: "Inversions", min: 0.0, max: 3.0, def: 0.0, kind: Kind::Enum(&ARP_INVS), unit: Unit::None },
     ParamDef { key: "AR_LATCH", name: "Latch", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Bool, unit: Unit::None },
     ParamDef { key: "AR_ACC", name: "Accent", min: 0.0, max: 1.0, def: 0.3, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "HUM_TIME", name: "Humanize Time", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "HUM_VEL", name: "Humanize Velocity", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "HUM_GATE", name: "Humanize Gate", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_RUN", name: "Drums", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Bool, unit: Unit::None },
+    ParamDef { key: "DR_VOL", name: "Drum Vol", min: 0.0, max: 1.0, def: 0.8, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_SWING", name: "Drum Swing", min: 0.0, max: 0.6, def: 0.0, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_T1", name: "Kick Steps", min: 0.0, max: 65535.0, def: 0.0, kind: Kind::Int, unit: Unit::Int },
+    ParamDef { key: "DR_V1", name: "Kick Vol", min: 0.0, max: 1.0, def: 0.8, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_M1", name: "Kick Mute", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Bool, unit: Unit::None },
+    ParamDef { key: "DR_TUNE1", name: "Kick Tune", min: -1.0, max: 1.0, def: 0.0, kind: Kind::Lin, unit: Unit::Signed },
+    ParamDef { key: "DR_DEC1", name: "Kick Decay", min: 0.0, max: 1.0, def: 0.5, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_T2", name: "Snare Steps", min: 0.0, max: 65535.0, def: 0.0, kind: Kind::Int, unit: Unit::Int },
+    ParamDef { key: "DR_V2", name: "Snare Vol", min: 0.0, max: 1.0, def: 0.8, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_M2", name: "Snare Mute", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Bool, unit: Unit::None },
+    ParamDef { key: "DR_TUNE2", name: "Snare Tune", min: -1.0, max: 1.0, def: 0.0, kind: Kind::Lin, unit: Unit::Signed },
+    ParamDef { key: "DR_DEC2", name: "Snare Decay", min: 0.0, max: 1.0, def: 0.5, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_T3", name: "Clap Steps", min: 0.0, max: 65535.0, def: 0.0, kind: Kind::Int, unit: Unit::Int },
+    ParamDef { key: "DR_V3", name: "Clap Vol", min: 0.0, max: 1.0, def: 0.8, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_M3", name: "Clap Mute", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Bool, unit: Unit::None },
+    ParamDef { key: "DR_TUNE3", name: "Clap Tune", min: -1.0, max: 1.0, def: 0.0, kind: Kind::Lin, unit: Unit::Signed },
+    ParamDef { key: "DR_DEC3", name: "Clap Decay", min: 0.0, max: 1.0, def: 0.5, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_T4", name: "Hat C Steps", min: 0.0, max: 65535.0, def: 0.0, kind: Kind::Int, unit: Unit::Int },
+    ParamDef { key: "DR_V4", name: "Hat C Vol", min: 0.0, max: 1.0, def: 0.8, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_M4", name: "Hat C Mute", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Bool, unit: Unit::None },
+    ParamDef { key: "DR_TUNE4", name: "Hat C Tune", min: -1.0, max: 1.0, def: 0.0, kind: Kind::Lin, unit: Unit::Signed },
+    ParamDef { key: "DR_DEC4", name: "Hat C Decay", min: 0.0, max: 1.0, def: 0.5, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_T5", name: "Hat O Steps", min: 0.0, max: 65535.0, def: 0.0, kind: Kind::Int, unit: Unit::Int },
+    ParamDef { key: "DR_V5", name: "Hat O Vol", min: 0.0, max: 1.0, def: 0.8, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_M5", name: "Hat O Mute", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Bool, unit: Unit::None },
+    ParamDef { key: "DR_TUNE5", name: "Hat O Tune", min: -1.0, max: 1.0, def: 0.0, kind: Kind::Lin, unit: Unit::Signed },
+    ParamDef { key: "DR_DEC5", name: "Hat O Decay", min: 0.0, max: 1.0, def: 0.5, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_T6", name: "Tom Steps", min: 0.0, max: 65535.0, def: 0.0, kind: Kind::Int, unit: Unit::Int },
+    ParamDef { key: "DR_V6", name: "Tom Vol", min: 0.0, max: 1.0, def: 0.8, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_M6", name: "Tom Mute", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Bool, unit: Unit::None },
+    ParamDef { key: "DR_TUNE6", name: "Tom Tune", min: -1.0, max: 1.0, def: 0.0, kind: Kind::Lin, unit: Unit::Signed },
+    ParamDef { key: "DR_DEC6", name: "Tom Decay", min: 0.0, max: 1.0, def: 0.5, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_T7", name: "Rim Steps", min: 0.0, max: 65535.0, def: 0.0, kind: Kind::Int, unit: Unit::Int },
+    ParamDef { key: "DR_V7", name: "Rim Vol", min: 0.0, max: 1.0, def: 0.8, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_M7", name: "Rim Mute", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Bool, unit: Unit::None },
+    ParamDef { key: "DR_TUNE7", name: "Rim Tune", min: -1.0, max: 1.0, def: 0.0, kind: Kind::Lin, unit: Unit::Signed },
+    ParamDef { key: "DR_DEC7", name: "Rim Decay", min: 0.0, max: 1.0, def: 0.5, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_T8", name: "Perc Steps", min: 0.0, max: 65535.0, def: 0.0, kind: Kind::Int, unit: Unit::Int },
+    ParamDef { key: "DR_V8", name: "Perc Vol", min: 0.0, max: 1.0, def: 0.8, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "DR_M8", name: "Perc Mute", min: 0.0, max: 1.0, def: 0.0, kind: Kind::Bool, unit: Unit::None },
+    ParamDef { key: "DR_TUNE8", name: "Perc Tune", min: -1.0, max: 1.0, def: 0.0, kind: Kind::Lin, unit: Unit::Signed },
+    ParamDef { key: "DR_DEC8", name: "Perc Decay", min: 0.0, max: 1.0, def: 0.5, kind: Kind::Lin, unit: Unit::Pct },
+    ParamDef { key: "LP_BARS", name: "Loop Length", min: 0.0, max: 4.0, def: 2.0, kind: Kind::Enum(&LOOP_BARS), unit: Unit::None },
+    ParamDef { key: "LP_VOL", name: "Loop Vol", min: 0.0, max: 1.0, def: 0.8, kind: Kind::Lin, unit: Unit::Pct },
 ];
 
 pub struct OscP { pub on: usize, pub wt: usize, pub pos: usize, pub wmode: usize, pub warp: usize, pub oct: usize, pub semi: usize, pub fine: usize, pub uni: usize, pub det: usize, pub blend: usize, pub phase: usize, pub rand: usize, pub level: usize, pub pan: usize, pub spread: usize }
